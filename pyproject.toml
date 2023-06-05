@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rankaae"
-version = "rankaae/__about__.py"
+version = "1.0.1"
 authors = [
   { name="Xiaohui Qu", email="xiaqu@bnl.gov" },
   { name="Zhu Liang", email="zleung9@gmail.com" }
