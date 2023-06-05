@@ -11,11 +11,11 @@ authors = [
 ]
 description = "Rank Constrained Adversarial Autoencoder"
 readme = "README.md"
-license = "LICENSE"
+license-files = {paths=["LICENSE"]}
 requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: BSD 3",
+    "License :: OSI Approved :: BSD License",
     "Operating System :: OS Independent",
 ]
 dependencies = [
