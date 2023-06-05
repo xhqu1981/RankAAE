@@ -36,7 +36,6 @@ dependencies = [
 train_sc = "rankaae.cmd.train_sc:main"
 wait_ipp_engines = "rankaae.cmd.wait_ipp_engines:main"
 stop_ipcontroller = "rankaae.cmd.stop_ipcontroller:main"
-run_training  = 'rankaae/cmd/run_training.sh'
 
 [tool.hatch.build]
 include = ["rankaae", "example"]
