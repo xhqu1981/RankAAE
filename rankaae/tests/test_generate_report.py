@@ -2,8 +2,8 @@ import os
 import numpy as np
 import torch
 from rankaae.models.dataloader import AuxSpectraDataset
-import rankaae.report.analysis as analysis
-import rankaae.report.analysis_new as analysis_new
+import rankaae.analysis.analysis as analysis
+import rankaae.analysis.analysis_new as analysis_new
 
 class Test_GenerateReport():
 

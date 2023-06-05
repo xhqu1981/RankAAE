@@ -1,18 +1,47 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
-name = "example_package_YOUR_USERNAME_HERE"
-version = "0.0.1"
+name = "rankaae"
+version = "rankaae/__about__.py"
 authors = [
-  { name="Example Author", email="author@example.com" },
+  { name="Xiaohui Qu", email="xiaqu@bnl.gov" },
+  { name="Zhu Liang", email="zleung9@gmail.com" }
 ]
-description = "A small example package"
+description = "Rank Constrained Adversarial Autoencoder"
 readme = "README.md"
-requires-python = ">=3.7"
+license = "LICENSE"
+requires-python = ">=3.11"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: BSD 3",
     "Operating System :: OS Independent",
 ]
 
+[project.scripts]
+train_sc = "rankaae.cmd.train_sc:main"
+wait_ipp_engines = "rankaae.cmd.wait_ipp_engines:main"
+stop_ipcontroller = "rankaae.cmd.stop_ipcontroller:main"
+run_training  = 'rankaae/cmd/run_training.sh'
+
+[tool.hatch.build]
+include = ["rankaae", "example"]
+exclude = [".circleci", "/rankaae/tests"]
+
 [project.urls]
-"Homepage" = "https://github.com/pypa/sampleproject"
-"Bug Tracker" = "https://github.com/pypa/sampleproject/issues"
+"Homepage" = "https://github.com/xhqu1981/RankAAE"
+
+dependencies = [
+  "numpy~=1.24.3",
+  "pyfitit~=3.0.5",
+  "torch~=2.0.1",
+  "torch-optimizer~=0.3.0",
+  "torchvision~=0.15.2",
+  "scipy~=1.10.1",
+  "matplotlib~=3.7.1",
+  "plotly~=5.9.0",
+  "pandas~=1.5.3",
+  "ipyparallel~=8.6.1",
+  "monty~=2023.5.8",
+]

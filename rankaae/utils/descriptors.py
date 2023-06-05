@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 from numpy.polynomial import Polynomial
 from scipy.interpolate import UnivariateSpline
-sys.path.append("/home/zliang/Documents/XANES_descriptors/")
 from pyfitit import curveFitting, descriptor
 from scipy.signal import find_peaks
 

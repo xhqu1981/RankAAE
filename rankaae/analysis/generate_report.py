@@ -8,8 +8,8 @@ import argparse
 import json
 from scipy.stats import spearmanr
 from sklearn.metrics.pairwise import cosine_similarity
-import rankaae.report.analysis as analysis
-import rankaae.report.analysis_new as analysis_new
+import rankaae.analysis.analysis as analysis
+import rankaae.analysis.analysis_new as analysis_new
 from rankaae.utils.parameter import Parameters
 from rankaae.models.dataloader import AuxSpectraDataset
 
