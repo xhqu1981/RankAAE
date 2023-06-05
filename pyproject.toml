@@ -33,9 +33,10 @@ dependencies = [
 ]
 
 [project.scripts]
-train_sc = "rankaae.cmd.train_sc:main"
+train_rankaae = "rankaae.cmd.train:main"
 wait_ipp_engines = "rankaae.cmd.wait_ipp_engines:main"
 stop_ipcontroller = "rankaae.cmd.stop_ipcontroller:main"
+rankaae_generate_report = "rankaae.cmd.generate_report:main"
 
 [tool.hatch.build]
 include = ["rankaae", "example"]

@@ -15,11 +15,11 @@ ulimit -a
 ipcluster start -n=8 --profile-dir=ipypar &
 sleep 10
 echo `date` "Start training"
-train_sc -c fix_config.yaml
+train_rankaae -c fix_config.yaml
 echo `date` "Job Finished"
 ipcluster stop --profile-dir=ipypar
 
 echo `date` "Genearting Report"
-sc_generate_report -c fix_config.yaml
+rankaae_generate_report -c fix_config.yaml
 echo `date` "Report Generated"
 
