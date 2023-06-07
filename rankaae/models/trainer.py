@@ -229,7 +229,7 @@ class Trainer:
             aux_loss_val = kendall_constraint(
                 aux_in_val, 
                 z[:,:n_aux], 
-                force_balance=self.kendall_activation,
+                force_balance=self.kendall_force_balance,
                 device=self.device
             )
             smooth_loss_val = smoothness_loss(
