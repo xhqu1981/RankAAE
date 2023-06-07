@@ -275,7 +275,7 @@ class Trainer:
                     f"{aux_loss_train.item():.6f},\t{aux_loss_val.item():.6f},\t"
                     f"{recon_loss_train.item():.6f},\t{recon_loss_val.item():.6f},\t"
                     f"{smooth_loss_train.item():.6f},\t{smooth_loss_val.item():.6f},\t"
-                    f"{mutual_info_loss_train.item():.6f},\t{mutual_info_loss_val.item():.6f},\t"
+                    f"{mutual_info_loss_train.item():.6f},\t{mutual_info_loss_val.item():.6f}"
                 )
             
             model_dict = {"Encoder": self.encoder,
