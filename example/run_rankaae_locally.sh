@@ -13,7 +13,6 @@ ulimit -n 100000
 ulimit -a
 
 total_engines=${2:-8}
-total_jobs=100
 echo "will run use ${total_engines} processes"
 
 element=$1
