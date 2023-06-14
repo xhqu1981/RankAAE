@@ -1,9 +1,9 @@
 # System settings
-data_file: feff_V_CT_CN_OCN_RSTD_MOOD_spec_202209081430_7000.csv
-trials: 8
+data_file: feff_Ti_OS_CN_OCN_NNRS_MOOD_spec_vasp_grid_20230714_0139.csv
+trials: 100
 timeout: 10
 verbose: true
-max_epoch: 2000
+max_epoch: 1500
 batch_size: 1024
 
 gradient_reversal: true # if true, `alpha_flat_step` and `alpha_limit` must be specified.
@@ -17,9 +17,11 @@ gen_beta: 1.1
 
 # Report Parameters
 output_name: report
-top_n: 8
+top_n: 20
 gpu: true
-
+# plot_job: job_64
+plot_residual: false
+n_sampling: 1000
 
 # Network Structure
 n_aux: 5
@@ -30,7 +32,6 @@ dim_out: 256 # if ae_form==normal, dim_out is always set to 256
 n_layers: 5 # FC only
 FC_discriminator_layers: 3 # used only if use_cnn_discriminator==false
 use_cnn_discriminator: false
-
 
 # Training Parameters
 dropout_rate: 0.04
@@ -48,10 +49,5 @@ optimizer_name: AdamW
 spec_noise: 0.02
 use_flex_spec_target: true
 weight_decay: 0.01
-kendall_activation: true
+kendall_force_balance: true
 epoch_stop_smooth: 1500
-
-
-
-
-
