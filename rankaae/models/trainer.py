@@ -440,7 +440,7 @@ class Trainer:
 
         if 'initial_guess_dir' in p.__dict__ and os.path.isdir(p.initial_guess_dir):
             # load encoder, decoder and discriminator from file
-            prev_fn = os.path.join(p.initial_guess_dir, *os.path.split('/')[-2:], 'final.pt')
+            prev_fn = os.path.join(p.initial_guess_dir, *work_dir.split('/')[-2:], 'final.pt')
             logger.info(f"Reading model initial guess from {prev_fn}")
             mt = torch.load(prev_fn, map_location=device)
             encoder = mt['Encoder']
