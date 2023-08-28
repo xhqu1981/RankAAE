@@ -438,29 +438,39 @@ class Trainer:
                 logger.warn("Use Slow CPU!")
             device = torch.device("cpu")
 
-        # Load encoder, decoder and discriminator
-        encoder = AE_CLS_DICT[p.ae_form]["encoder"](
-            nstyle = p.nstyle, 
-            dropout_rate = p.dropout_rate, 
-            dim_in = p.dim_in, 
-            n_layers = p.n_layers
-        )
-        decoder = AE_CLS_DICT[p.ae_form]["decoder"](
-            nstyle = p.nstyle, 
-            dropout_rate = p.dropout_rate, 
-            last_layer_activation = p.decoder_activation, 
-            dim_out = p.dim_out,
-            n_layers = p.n_layers
-        )
-        if p.use_cnn_discriminator:
-            discriminator = DiscriminatorCNN(
-                nstyle=p.nstyle, dropout_rate=p.dis_dropout_rate, noise=p.dis_noise
-            )
+        if 'initial_guess_dir' in p.__dict__ and os.path.isdir(p.initial_guess_dir):
+            # load encoder, decoder and discriminator from file
+            prev_fn = os.path.join(p.initial_guess_dir, *os.path.split('/')[-2:], 'final.pt')
+            logger.info(f"Reading model initial guess from {prev_fn}")
+            mt = torch.load(prev_fn, map_location=device)
+            encoder = mt['Encoder']
+            decoder = mt['Decoder']
+            discriminator = mt['Style Discriminator']
         else:
-            discriminator = DiscriminatorFC(
-                nstyle=p.nstyle, dropout_rate=p.dis_dropout_rate, noise=p.dis_noise,
-                layers = p.FC_discriminator_layers
+            # Generate encoder, decoder and discriminator
+            logger.info("Generate model initial guess using random numbers")
+            encoder = AE_CLS_DICT[p.ae_form]["encoder"](
+                nstyle = p.nstyle, 
+                dropout_rate = p.dropout_rate, 
+                dim_in = p.dim_in, 
+                n_layers = p.n_layers
             )
+            decoder = AE_CLS_DICT[p.ae_form]["decoder"](
+                nstyle = p.nstyle, 
+                dropout_rate = p.dropout_rate, 
+                last_layer_activation = p.decoder_activation, 
+                dim_out = p.dim_out,
+                n_layers = p.n_layers
+            )
+            if p.use_cnn_discriminator:
+                discriminator = DiscriminatorCNN(
+                    nstyle=p.nstyle, dropout_rate=p.dis_dropout_rate, noise=p.dis_noise
+                )
+            else:
+                discriminator = DiscriminatorFC(
+                    nstyle=p.nstyle, dropout_rate=p.dis_dropout_rate, noise=p.dis_noise,
+                    layers = p.FC_discriminator_layers
+                )
 
         for net in [encoder, decoder, discriminator]:
             net.to(device)
