@@ -243,14 +243,15 @@ def main():
         data_file_list = [f for f in os.listdir(work_dir) if f.endswith('.csv')]
         assert len(data_file_list) == 1, "Which data file are you going to use?"
         file_name = data_file_list[0]
-    test_ds = AuxSpectraDataset(os.path.join(work_dir, file_name), split_portion = "val", n_aux = config.n_aux)
+    val_ds = AuxSpectraDataset(os.path.join(work_dir, file_name), split_portion = "val", n_aux = config.n_aux)
+    test_ds = AuxSpectraDataset(os.path.join(work_dir, file_name), split_portion = "test", n_aux = config.n_aux)
     
     try:
         sorted_jobs = [config.plot_job]
         output_path_best_model = os.path.join(work_dir, f"{config.output_name}_{sorted_jobs[0]}.png")
     except:
         #### Choose the 20 top model based on evaluation criteria ####
-        model_results = analysis.evaluate_all_models(jobs_dir, test_ds, device=device) # models are not sorted
+        model_results = analysis.evaluate_all_models(jobs_dir, val_ds, device=device) # models are not sorted
         model_results, sorted_jobs, fig_model_selection = analysis.sort_all_models( 
             model_results, 
             plot_score = True, 
