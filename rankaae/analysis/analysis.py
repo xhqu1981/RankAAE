@@ -81,7 +81,7 @@ def plot_spectra_variation(
         # Assign the "layer" to be duplicates of `style_variation`
         con_c[..., istyle] = style_variation[:, np.newaxis]
         con_c = con_c.reshape(n_spec * n_sampling, decoder.nstyle)
-        spec_out = decoder(con_c).reshape(n_spec, n_sampling, 256)
+        spec_out = decoder(con_c).reshape(n_spec, n_sampling, -1)
         # Average along the `n_sampling` dimsion.
         spec_out = spec_out.mean(axis = 1).cpu().detach().numpy()
     
