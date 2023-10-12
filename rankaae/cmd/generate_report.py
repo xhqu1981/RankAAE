@@ -35,10 +35,10 @@ def sorting_algorithm(x):
     xx = x.copy()
     xx[:,0] = x[:,0] *  weight[0] # Inter-style Corr
     xx[:,1] = x[:,1] ** weight[1] # Reconstion Err
-    xx[:,2] = x[:,2] *  weight[2] # Style1 - CT Corr
+    xx[:,2] = x[:,2] *  weight[2] # Style1 - OS Corr
     xx[:,3] = x[:,3] *  weight[3] # Style2 - CN Corr
     xx[:,4] = x[:,4] *  weight[4] # Style3 - OCN Corr
-    xx[:,5] = x[:,5] *  weight[5] # Style4 - Rstd Corr
+    xx[:,5] = x[:,5] *  weight[5] # Style4 - NNRS Corr
     xx[:,6] = x[:,6] *  weight[6] # Style5 - MOOD Corr
     
     
@@ -52,7 +52,7 @@ def plot_report(test_ds, model, config=None, title='report', device = torch.devi
     except AttributeError:
         plot_residual = None
 
-    name_list = ["CT", "CN", "OCN", "Rstd", "OO"]
+    name_list = ["OS", "CN", "OCN", "NNRS", "OO"]
 
     encoder = model['Encoder']
     decoder = model['Decoder']
@@ -140,7 +140,7 @@ def plot_report(test_ds, model, config=None, title='report', device = torch.devi
             else:
                 plot_fit = False
 
-            # for the first style (CT) use polynomial as fitting
+            # for the first style (OS) use polynomial as fitting
             if col == 0:
                 result_choice = ["R2", "Spearman", "Quadratic"]
             else:

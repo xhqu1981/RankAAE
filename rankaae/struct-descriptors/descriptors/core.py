@@ -28,7 +28,7 @@ class DescriptorEnabledStructure(Structure):
         self.bvs = None
         self.oxi_state = None
         self.bv_list = []
-        self.Rstd = None
+        self.NNRS = None
         self.min_oo_dist = None
         self.mean_oo_dist = None
         self.min_oo_angle = None
@@ -51,7 +51,7 @@ class DescriptorEnabledStructure(Structure):
             "CN": self.cn,
             "OCN": self.ocn,
             "BVS": self.bvs,
-            "Rstd": self.Rstd,
+            "NNRS": self.NNRS,
             "MOOD": self.min_oo_dist,
             "NOOD": self.mean_oo_dist,
             "MOOA": self.min_oo_angle,
@@ -72,7 +72,7 @@ class DescriptorEnabledStructure(Structure):
             print(f"CN: {self.cn}")
             print(f"OCN: {self.ocn}")
             print(f"BVS: {self.bvs}")
-            print(f"Rstd: {self.Rstd}")
+            print(f"NNRS: {self.NNRS}")
             print(f"MOOD: {self.min_oo_dist}")
             print(f"NOOD: {self.mean_oo_dist}")
             print(f"MOOA: {self.min_oo_angle}")
@@ -268,7 +268,7 @@ class DescriptorEnabledStructure(Structure):
     def update_rstd(self, return_bondlength=False):
         target_coord = self[self.target_site_index].coords
         coord_list = [nbr.coords-target_coord for nbr in self.neighbor_list]
-        self.Rstd = utils.calculate_rstd(coord_list, return_bondlength=return_bondlength)
+        self.NNRS = utils.calculate_rstd(coord_list, return_bondlength=return_bondlength)
 
 
     def update_oo_dist(self, minimum=True):

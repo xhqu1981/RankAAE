@@ -144,10 +144,10 @@ def sort_all_models(
     score_names = [
         "Inter-style Corr", # 0
         "Reconstuction Err", # 1
-        "Style_1 - CT Corr", # 2
+        "Style_1 - OS Corr", # 2
         "Style_2 - CN Corr", # 3
         "Style_3 - OCN Corr", # 4
-        "Style_4 - Rstd Corr", # 5
+        "Style_4 - NNRS Corr", # 5
         "Style_5 - OO Corr", # 6
         
     ]
