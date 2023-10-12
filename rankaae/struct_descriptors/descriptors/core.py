@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 from pymatgen.core.structure import Structure
-from descriptors import utils
+from rankaae.struct_descriptors.descriptors import utils
 from pymatgen.analysis.bond_valence import BVAnalyzer
 
 class DescriptorEnabledStructure(Structure):
