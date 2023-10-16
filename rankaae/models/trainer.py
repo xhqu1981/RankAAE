@@ -167,9 +167,15 @@ class Trainer:
 
                 # Init gradients, reconstruction loss
                 self.zerograd()
-                spec_out  = self.decoder(self.encoder(spec_in)) # retain the graph?
+                if 'warp_and_scale' in self.__dict__ and self.warp_and_scale is True:
+                    reconn_spec_in = self.mws_mapper(spec_in)
+                else:
+                    reconn_spec_in = spec_in
+                spec_out  = self.decoder(self.encoder(reconn_spec_in))
+                if 'warp_and_scale' in self.__dict__ and self.warp_and_scale is True:
+                    spec_out = spec_out.clone().detach()
                 recon_loss_train = recon_loss(
-                    spec_in, spec_out, 
+                    reconn_spec_in, spec_out, 
                     scale=self.use_flex_spec_target,
                     device=self.device
                 )
