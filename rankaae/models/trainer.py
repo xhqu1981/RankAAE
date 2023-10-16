@@ -190,22 +190,25 @@ class Trainer:
                 recon_loss_train.backward()
                 self.optimizers["reconstruction"].step()
 
-                # Init gradients, mutual information loss
-                self.zerograd()
-                styles = self.encoder(spec_in)
-                mutual_info_loss_train = mutual_info_loss(
-                    spec_in, styles,
-                    encoder=self.encoder, 
-                    decoder=self.decoder, 
-                    mse_loss=mse_loss, 
-                    device=self.device
-                )
-                mutual_info_loss_train.backward()
-                self.optimizers["mutual_info"].step()
+                if self.optimizers["mutual_info"] is not None:
+                    # Init gradients, mutual information loss
+                    self.zerograd()
+                    styles = self.encoder(spec_in)
+                    mutual_info_loss_train = mutual_info_loss(
+                        spec_in, styles,
+                        encoder=self.encoder, 
+                        decoder=self.decoder, 
+                        mse_loss=mse_loss, 
+                        device=self.device
+                    )
+                    mutual_info_loss_train.backward()
+                    self.optimizers["mutual_info"].step()
+                else:
+                    mutual_info_loss_train = torch.tensor(0.0)
                 avg_mutual_info += mutual_info_loss_train.item()
 
                 # Init gradients, smoothness loss
-                if epoch < self.epoch_stop_smooth: # turn off smooth loss after 500
+                if epoch < self.epoch_stop_smooth and self.optimizers["smoothness"] is not None: # turn off smooth loss after 500
                     self.zerograd()
                     spec_out  = self.decoder(self.encoder(spec_in)) # retain the graph?
                     smooth_loss_train = smoothness_loss(
@@ -216,7 +219,7 @@ class Trainer:
                     smooth_loss_train.backward()
                     self.optimizers["smoothness"].step()
                 else:
-                    smooth_loss_train = torch.tensor(0) 
+                    smooth_loss_train = torch.tensor(0.0) 
                 
                 
                 # Init gradients
