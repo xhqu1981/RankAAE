@@ -285,7 +285,8 @@ class Trainer:
             
             model_dict = {"Encoder": self.encoder,
                           "Decoder": self.decoder,
-                          "Style Discriminator": self.discriminator}
+                          "Style Discriminator": self.discriminator,
+                          "Warp Scale Mapper": self.mws_mapper}
             
             avg_mutual_info /= n_batch
             style_np = z.detach().clone().cpu().numpy().T
