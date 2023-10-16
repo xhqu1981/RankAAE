@@ -148,17 +148,20 @@ class Trainer:
                     )
                     gen_loss_train.backward()
                     self.optimizers["generator"].step()
-
-                # Kendall constraint
-                self.zerograd()
-                styles = self.encoder(spec_in)
-                aux_loss_train = kendall_constraint(
-                    aux_in, styles[:,:n_aux], 
-                    force_balance=self.kendall_force_balance,
-                    device=self.device
-                )
-                aux_loss_train.backward()
-                self.optimizers["correlation"].step()
+                
+                if self.optimizers["correlation"] is not None:
+                    # Kendall constraint
+                    self.zerograd()
+                    styles = self.encoder(spec_in)
+                    aux_loss_train = kendall_constraint(
+                        aux_in, styles[:,:n_aux], 
+                        force_balance=self.kendall_force_balance,
+                        device=self.device
+                    )
+                    aux_loss_train.backward()
+                    self.optimizers["correlation"].step()
+                else:
+                    aux_loss_train = torch.tensor(0.0, dtype=torch.float32)
 
                 # Init gradients, reconstruction loss
                 self.zerograd()
@@ -354,13 +357,16 @@ class Trainer:
             lr = self.lr_ratio_Smooth * self.lr_base,
             weight_decay = self.weight_decay
         )
-        corr_optimizer = opt_cls(
-            [
-                {'params': self.encoder.parameters()}
-            ],
-            lr = self.lr_ratio_Corr * self.lr_base,
-            weight_decay = self.weight_decay
-        )
+        if self.lr_ratio_Corr > 0:
+            corr_optimizer = opt_cls(
+                [
+                    {'params': self.encoder.parameters()}
+                ],
+                lr = self.lr_ratio_Corr * self.lr_base,
+                weight_decay = self.weight_decay
+            )
+        else:
+            corr_optimizer = None
         dis_optimizer = opt_cls(
             [
                 {'params': self.discriminator.parameters()}
@@ -404,7 +410,7 @@ class Trainer:
                 optimizer, mode="min", factor=self.sch_factor, patience=self.sch_patience, 
                 cooldown=0, threshold=0.01,verbose=self.verbose
             ) 
-            for name, optimizer in self.optimizers.items()
+            for name, optimizer in self.optimizers.items() if optimizer is not None
         }
 
 
