@@ -34,6 +34,7 @@ AE_CLS_DICT = {
 OPTIM_DICT = {
     "Adam": optim.Adam, 
     "AdamW": optim.AdamW,
+    "NAdam": optim.NAdam,
     "AdaBound": ex_optim.AdaBound, 
     "RAdam": ex_optim.RAdam
 }
