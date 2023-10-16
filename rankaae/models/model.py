@@ -675,3 +675,33 @@ class DummyDualAAE(nn.Module):
         x2 = self.decoder(z)
         is_gau = self.discriminator(z, 0.3)
         return x2, is_gau
+
+
+class ModalityWarpAndScaleMapping(nn.Module):
+    
+    def __init__(self, ngrid=256, seg_size=32):
+        super(ModalityWarpAndScaleMapping, self).__init__()
+        self.grid_indices = torch.arange(ngrid, dtype=torch.float32)[:, None]
+        self.seg_source_indices = self.grid_indices.to(torch.long)[:, 0] - seg_size // 2
+        self.seg_source_indices = torch.clamp(self.seg_source_indices, min=0, max=ngrid-seg_size)
+        self.seg_source_indices = self.seg_source_indices[:, None] + torch.arange(seg_size, dtype=torch.long)[None, :]
+        self.warp_indexer = nn.Sequential(
+            nn.Linear(in_features=1, out_features=4),
+            nn.ReLU(),
+            nn.BatchNorm1d(num_features=4, affine=False),
+            nn.Linear(in_features=4, out_features=16),
+            nn.ReLU(),
+            nn.BatchNorm1d(num_features=16, affine=False),
+            nn.Linear(in_features=16, out_features=seg_size),
+            nn.Softmax(dim=-1)
+        )
+        
+        self.k = nn.Parameter(torch.randn(ngrid) * 0.1 + 1.0, requires_grad=True)
+        self.b = nn.Parameter(torch.randn(ngrid) * 0.1, requires_grad=True)
+        
+    def forward(self, specs_in):
+        seg_selector = self.warp_indexer(self.grid_indices)
+        specs_warped = (specs_in[:, self.seg_source_indices] * seg_selector[None, ...]).sum(dim=-1)
+        specs_ws = specs_warped * self.k + self.b
+        return specs_ws
+
