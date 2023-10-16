@@ -14,7 +14,8 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from rankaae.models.model import (
     DiscriminatorCNN, 
-    DiscriminatorFC
+    DiscriminatorFC,
+    ModalityWarpAndScaleMapping
 )
 from rankaae.models.dataloader import get_dataloaders
 from rankaae.utils.parameter import AE_CLS_DICT, OPTIM_DICT, Parameters
@@ -37,7 +38,7 @@ class Trainer:
 
     def __init__(
         self, 
-        encoder, decoder, discriminator, device, train_loader, val_loader,
+        encoder, decoder, discriminator, mws_mapper, device, train_loader, val_loader,
         verbose=True, work_dir='.', tb_logdir="runs", 
         config_parameters = Parameters({}), # initialize Parameters with an empty dictonary.
         logger = logging.getLogger("training"),
@@ -49,6 +50,7 @@ class Trainer:
         self.encoder = encoder.to(self.device)
         self.decoder = decoder.to(self.device)
         self.discriminator = discriminator.to(self.device)
+        self.mws_mapper = mws_mapper.to(self.device) if mws_mapper is not None else None
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.verbose = verbose
@@ -335,28 +337,50 @@ class Trainer:
 
     def load_optimizers(self):
         opt_cls = OPTIM_DICT[self.optimizer_name]
-        recon_optimizer = opt_cls(
-            [
-                {'params': self.encoder.parameters()}, 
-                {'params': self.decoder.parameters()}
-            ],
-            lr = self.lr_ratio_Reconn * self.lr_base,
-            weight_decay = self.weight_decay    
-        )
-        mutual_info_optimizer = opt_cls(
-            [
-                {'params': self.encoder.parameters()}, 
-                {'params': self.decoder.parameters()}
-            ],
-            lr = self.lr_ratio_Mutual * self.lr_base
-        )
-        smooth_optimizer = opt_cls(
-            [
-                {'params': self.decoder.parameters()}
-            ], 
-            lr = self.lr_ratio_Smooth * self.lr_base,
-            weight_decay = self.weight_decay
-        )
+
+        if self.lr_ratio_Reconn > 0:
+            if 'freeze_core' in self.__dict__ and self.freeze_core is True:
+                params = []
+            else:
+                params = [
+                    {'params': self.encoder.parameters()}, 
+                    {'params': self.decoder.parameters()}
+                ]
+            if 'warp_and_scale' in self.__dict__ and self.warp_and_scale is True:
+                params.append({'params': self.mws_mapper.parameters()})
+            recon_optimizer = opt_cls(
+                [
+                    {'params': self.encoder.parameters()}, 
+                    {'params': self.decoder.parameters()}
+                ],
+                lr = self.lr_ratio_Reconn * self.lr_base,
+                weight_decay = self.weight_decay    
+            )
+        else:
+            recon_optimizer = None
+
+        if self.lr_ratio_Mutual > 0:
+            mutual_info_optimizer = opt_cls(
+                [
+                    {'params': self.encoder.parameters()}, 
+                    {'params': self.decoder.parameters()}
+                ],
+                lr = self.lr_ratio_Mutual * self.lr_base
+            )
+        else:
+            mutual_info_optimizer = None
+
+        if self.lr_ratio_Smooth > 0:
+            smooth_optimizer = opt_cls(
+                [
+                    {'params': self.decoder.parameters()}
+                ], 
+                lr = self.lr_ratio_Smooth * self.lr_base,
+                weight_decay = self.weight_decay
+            )
+        else:
+            smooth_optimizer = None
+
         if self.lr_ratio_Corr > 0:
             corr_optimizer = opt_cls(
                 [
@@ -367,30 +391,40 @@ class Trainer:
             )
         else:
             corr_optimizer = None
-        dis_optimizer = opt_cls(
-            [
-                {'params': self.discriminator.parameters()}
-            ],
-            lr = self.lr_ratio_dis * self.lr_base,
-            betas = (self.dis_beta * 0.9, self.dis_beta * 0.009 + 0.99)
-        )
 
-        gen_optimizer = opt_cls(
-            [
-                {'params': self.encoder.parameters()}
-            ],
-            lr = self.lr_ratio_gen * self.lr_base,
-            betas = (self.gen_beta * 0.9, self.gen_beta * 0.009 + 0.99)
-        )
+        if self.lr_ratio_dis > 0:
+            dis_optimizer = opt_cls(
+                [
+                    {'params': self.discriminator.parameters()}
+                ],
+                lr = self.lr_ratio_dis * self.lr_base,
+                betas = (self.dis_beta * 0.9, self.dis_beta * 0.009 + 0.99)
+            )
+        else:
+            dis_optimizer = None
 
-        adv_optimizer = opt_cls(
-            [
-                {'params': self.discriminator.parameters()},
-                {'params': self.encoder.parameters()}
-            ],
-            lr = self.lr_ratio_dis * self.lr_base,
-            betas = (self.dis_beta * 0.9, self.dis_beta * 0.009 + 0.99)
-        )
+        if self.lr_ratio_gen > 0:
+            gen_optimizer = opt_cls(
+                [
+                    {'params': self.encoder.parameters()}
+                ],
+                lr = self.lr_ratio_gen * self.lr_base,
+                betas = (self.gen_beta * 0.9, self.gen_beta * 0.009 + 0.99)
+            )
+        else:
+            gen_optimizer = None
+
+        if self.lr_ratio_dis > 0:
+            adv_optimizer = opt_cls(
+                [
+                    {'params': self.discriminator.parameters()},
+                    {'params': self.encoder.parameters()}
+                ],
+                lr = self.lr_ratio_dis * self.lr_base,
+                betas = (self.dis_beta * 0.9, self.dis_beta * 0.009 + 0.99)
+            )
+        else:
+            adv_optimizer = None
 
         self.optimizers = {
             "reconstruction": recon_optimizer,
@@ -477,9 +511,16 @@ class Trainer:
                     nstyle=p.nstyle, dropout_rate=p.dis_dropout_rate, noise=p.dis_noise,
                     layers = p.FC_discriminator_layers
                 )
+        if 'warp_and_scale' in p.__dict__ and p.warp_and_scale is True:
+            mws_mapper = ModalityWarpAndScaleMapping(ngrid=p.dim_in, seg_size=p.warp_size)
+        else:
+            mws_mapper = None
 
         for net in [encoder, decoder, discriminator]:
             net.to(device)
+        
+        if mws_mapper is not None:
+            mws_mapper.to(device)
 
         # Load trainer
         trainer = Trainer(
