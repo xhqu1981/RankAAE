@@ -531,7 +531,7 @@ class Trainer:
 
         # Load trainer
         trainer = Trainer(
-            encoder, decoder, discriminator, device, dl_train, dl_val,
+            encoder, decoder, discriminator, mws_mapper, device, dl_train, dl_val,
             verbose=verbose, work_dir=work_dir,
             config_parameters=p, logger=logger, loss_logger=loss_logger
         )
