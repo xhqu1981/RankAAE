@@ -681,7 +681,7 @@ class ModalityWarpAndScaleMapping(nn.Module):
     
     def __init__(self, ngrid=256, seg_size=32):
         super(ModalityWarpAndScaleMapping, self).__init__()
-        self.grid_indices = torch.arange(ngrid, dtype=torch.float32)[:, None]
+        self.grid_indices = nn.Parameter(torch.arange(ngrid, dtype=torch.float32)[:, None], requires_grad=False)
         self.seg_source_indices = self.grid_indices.to(torch.long)[:, 0] - seg_size // 2
         self.seg_source_indices = torch.clamp(self.seg_source_indices, min=0, max=ngrid-seg_size)
         self.seg_source_indices = self.seg_source_indices[:, None] + torch.arange(seg_size, dtype=torch.long)[None, :]
