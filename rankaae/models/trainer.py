@@ -199,7 +199,8 @@ class Trainer:
                     mutual_info_loss_train = mutual_info_loss(
                         spec_in, styles,
                         encoder=self.encoder, 
-                        decoder=self.decoder, 
+                        decoder=self.decoder,
+                        mws_mapper=self.mws_mapper, 
                         mse_loss=mse_loss, 
                         device=self.device
                     )
