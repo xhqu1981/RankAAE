@@ -259,7 +259,7 @@ class Trainer:
                     device=self.device
                 )
             else:
-                aux_in_val = torch.tensor(0.0)
+                aux_loss_val = torch.tensor(0.0)
 
             if self.optimizers["smoothness"] is not None:
                 smooth_loss_val = smoothness_loss(
