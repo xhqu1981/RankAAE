@@ -102,7 +102,6 @@ class Trainer:
             # Loop through the labeled and unlabeled dataset getting one batch of samples from each
             # The batch size has to be a divisor of the size of the dataset or it will return
             # invalid samples
-            n_batch = len(self.train_loader)
             for spec_in, aux_in in self.train_loader:
                 spec_in = spec_in.to(self.device)
                 if self.train_loader.dataset.aux is None:
@@ -113,6 +112,8 @@ class Trainer:
                     aux_in = aux_in.to(self.device)
                 
                 spec_in += torch.randn_like(spec_in, requires_grad=False) * self.spec_noise
+                if self.__dict__.get('randomize_spec_height', False):
+                    spec_in *= 1.0 + torch.randn_like(spec_in, requires_grad=False) * self.spec_height_noise
                 styles = self.encoder(spec_in) # exclude the free style
                 spec_out = self.decoder(styles) # reconstructed spectra
 
