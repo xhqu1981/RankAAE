@@ -93,6 +93,8 @@ class Trainer:
             self.encoder.train()
             self.decoder.train()
             self.discriminator.train()
+            if self.mws_mapper is not None:
+                self.mws_mapper.train()
 
             if self.gradient_reversal:
                 alpha_ = alpha(epoch/self.max_epoch, self.alpha_flat_step, self.alpha_limit)
@@ -229,6 +231,8 @@ class Trainer:
             self.encoder.eval()
             self.decoder.eval()
             self.discriminator.eval()
+            if self.mws_mapper is not None:
+                self.mws_mapper.eval()
             
             spec_in_val, aux_in_val = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))]
             spec_in_val = spec_in_val.to(self.device)
@@ -367,6 +371,8 @@ class Trainer:
         self.encoder.zero_grad()
         self.decoder.zero_grad()
         self.discriminator.zero_grad()
+        if self.mws_mapper is not None:
+            self.mws_mapper.zero_grad()
 
     def get_style_distribution_plot(self, z):
         # noinspection PyTypeChecker
