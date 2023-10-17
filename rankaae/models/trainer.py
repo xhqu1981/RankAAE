@@ -103,7 +103,6 @@ class Trainer:
             # The batch size has to be a divisor of the size of the dataset or it will return
             # invalid samples
             n_batch = len(self.train_loader)
-            avg_mutual_info = 0.0
             for spec_in, aux_in in self.train_loader:
                 spec_in = spec_in.to(self.device)
                 if self.train_loader.dataset.aux is None:
@@ -208,7 +207,6 @@ class Trainer:
                     self.optimizers["mutual_info"].step()
                 else:
                     mutual_info_loss_train = torch.tensor(0.0)
-                avg_mutual_info += mutual_info_loss_train.item()
 
                 # Init gradients, smoothness loss
                 if epoch < self.epoch_stop_smooth and self.optimizers["smoothness"] is not None: # turn off smooth loss after 500
@@ -276,10 +274,11 @@ class Trainer:
                 smooth_loss_val = torch.tensor(0.0)
 
             if self.optimizers["mutual_info"] is not None:  
-                mutual_info_loss_val = mutual_info_loss(
+                mutual_info_loss_val =  mutual_info_loss(
                     spec_in_val, z,
                     encoder=self.encoder, 
                     decoder=self.decoder, 
+                    mws_mapper=self.mws_mapper,
                     mse_loss=mse_loss, 
                     device=self.device
                 )
@@ -332,7 +331,6 @@ class Trainer:
                           "Style Discriminator": self.discriminator,
                           "Warp Scale Mapper": self.mws_mapper}
             
-            avg_mutual_info /= n_batch
             style_np = z.detach().clone().cpu().numpy().T
             style_shapiro = [shapiro(x).statistic for x in style_np]
             style_coupling = np.max(np.fabs(
@@ -342,10 +340,10 @@ class Trainer:
                 ]
             ))
             if 'warp_and_scale' in self.__dict__ and self.warp_and_scale is True:
-                metrics = [0.0, recon_loss_val.item(), 0.0, 0.0, 0.0]
+                metrics = [0.0, recon_loss_val.item(), mutual_info_loss_val.item(), 0.0, 0.0]
             else:
-                metrics = [min(style_shapiro), recon_loss_val.item(), avg_mutual_info, style_coupling,
-                       aux_loss_val.item() if aux_in is not None else 0]
+                metrics = [min(style_shapiro), recon_loss_val.item(), mutual_info_loss_val.item(), style_coupling,
+                           aux_loss_val.item() if aux_in is not None else 0]
             
             combined_metric = - (np.array(self.metric_weights) * np.array(metrics)).sum()
             if combined_metric > best_combined_metric:
