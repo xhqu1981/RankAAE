@@ -238,7 +238,9 @@ class Trainer:
             spec_in_val = spec_in_val.to(self.device)
             if 'warp_and_scale' in self.__dict__ and self.warp_and_scale is True:
                 reconn_spec_in_val = self.mws_mapper(spec_in_val)
-            z = self.encoder(spec_in_val)
+            else:
+                reconn_spec_in_val = spec_in_val
+            z = self.encoder(reconn_spec_in_val)
             spec_out_val = self.decoder(z)
 
             if self.train_loader.dataset.aux is None:
