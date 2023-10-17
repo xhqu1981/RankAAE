@@ -398,10 +398,7 @@ class Trainer:
             if 'warp_and_scale' in self.__dict__ and self.warp_and_scale is True:
                 params.append({'params': self.mws_mapper.parameters()})
             recon_optimizer = opt_cls(
-                [
-                    {'params': self.encoder.parameters()}, 
-                    {'params': self.decoder.parameters()}
-                ],
+                params,
                 lr = self.lr_ratio_Reconn * self.lr_base,
                 weight_decay = self.weight_decay    
             )
