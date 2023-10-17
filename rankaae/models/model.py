@@ -705,3 +705,16 @@ class ModalityWarpAndScaleMapping(nn.Module):
         specs_ws = specs_warped * self.k + self.b
         return specs_ws
 
+
+class FCEncoderWithWarpScaling(nn.Module):
+    
+    def __init__(self, encoder, warp_scale_model):
+        super(FCEncoderWithWarpScaling, self).__init__()
+        self.encoder = encoder
+        self.warp_scale_model = warp_scale_model
+        
+    def forward(self, x):
+        x = self.warp_scale_model(x)
+        x = self.encoder(x)
+        return x
+
