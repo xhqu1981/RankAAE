@@ -113,7 +113,7 @@ class Trainer:
                 
                 spec_in += torch.randn_like(spec_in, requires_grad=False) * self.spec_noise
                 if self.__dict__.get('randomize_spec_height', False):
-                    spec_in *= 1.0 + torch.randn_like(spec_in, requires_grad=False) * self.spec_height_noise
+                    spec_in *= 1.0 + torch.randn(spec_in.size()[0], device=spec_in.device, requires_grad=False)[:, None] * self.spec_height_noise
                 styles = self.encoder(spec_in) # exclude the free style
                 spec_out = self.decoder(styles) # reconstructed spectra
 
