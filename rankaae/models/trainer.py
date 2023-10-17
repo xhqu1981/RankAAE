@@ -232,6 +232,8 @@ class Trainer:
             
             spec_in_val, aux_in_val = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))]
             spec_in_val = spec_in_val.to(self.device)
+            if 'warp_and_scale' in self.__dict__ and self.warp_and_scale is True:
+                reconn_spec_in_val = self.mws_mapper(spec_in_val)
             z = self.encoder(spec_in_val)
             spec_out_val = self.decoder(z)
 
@@ -243,51 +245,71 @@ class Trainer:
                 aux_in_val = aux_in_val.to(self.device)
             
             recon_loss_val = recon_loss(
-                spec_in_val, 
+                reconn_spec_in_val, 
                 spec_out_val, 
                 mse_loss=mse_loss, 
                 device=self.device
             )
-            aux_loss_val = kendall_constraint(
-                aux_in_val, 
-                z[:,:n_aux], 
-                force_balance=self.kendall_force_balance,
-                device=self.device
-            )
-            smooth_loss_val = smoothness_loss(
-                spec_out_val, 
-                gs_kernel_size=self.gau_kernel_size,
-                device=self.device
-            )
-            mutual_info_loss_val = mutual_info_loss(
-                spec_in_val, z,
-                encoder=self.encoder, 
-                decoder=self.decoder, 
-                mse_loss=mse_loss, 
-                device=self.device
-            )
-            if self.gradient_reversal:
-                dis_loss_val = adversarial_loss(
-                    spec_in_val, z, self.discriminator, alpha_,
-                    batch_size=self.batch_size, 
-                    nll_loss=bce_lgt_loss, 
+
+            if self.optimizers["correlation"] is not None:
+                aux_loss_val = kendall_constraint(
+                    aux_in_val, 
+                    z[:,:n_aux], 
+                    force_balance=self.kendall_force_balance,
                     device=self.device
                 )
-                gen_loss_val = torch.tensor(0)
             else:
-                dis_loss_val = discriminator_loss(
-                    z, self.discriminator, 
-                    batch_size=len(z),
-                    loss_fn=bce_lgt_loss,
+                aux_in_val = torch.tensor(0.0)
+
+            if self.optimizers["smoothness"] is not None:
+                smooth_loss_val = smoothness_loss(
+                    spec_out_val, 
+                    gs_kernel_size=self.gau_kernel_size,
                     device=self.device
                 )
-                gen_loss_val = generator_loss(
-                    spec_in_val, 
-                    self.encoder, 
-                    self.discriminator, 
-                    loss_fn=nll_loss, 
+            else:
+                smooth_loss_val = torch.tensor(0.0)
+
+            if self.optimizers["mutual_info"] is not None:  
+                mutual_info_loss_val = mutual_info_loss(
+                    spec_in_val, z,
+                    encoder=self.encoder, 
+                    decoder=self.decoder, 
+                    mse_loss=mse_loss, 
                     device=self.device
                 )
+            else:
+                mutual_info_loss_val = torch.tensor(0.0)
+
+            if self.gradient_reversal:
+                if self.optimizers["adversarial"] is not None:
+                    dis_loss_val = adversarial_loss(
+                        spec_in_val, z, self.discriminator, alpha_,
+                        batch_size=self.batch_size, 
+                        nll_loss=bce_lgt_loss, 
+                        device=self.device
+                    )
+                else:
+                    dis_loss_val = torch.tensor(0.0)
+                gen_loss_val = torch.tensor(0.0)
+            else:
+                if self.optimizers["discriminator"] is not None and self.optimizers["generator"] is not None:
+                    dis_loss_val = discriminator_loss(
+                        z, self.discriminator, 
+                        batch_size=len(z),
+                        loss_fn=bce_lgt_loss,
+                        device=self.device
+                    )
+                    gen_loss_val = generator_loss(
+                        spec_in_val, 
+                        self.encoder, 
+                        self.discriminator, 
+                        loss_fn=nll_loss, 
+                        device=self.device
+                    )
+                else:
+                    dis_loss_val = torch.tensor(0.0)
+                    gen_loss_val = torch.tensor(0.0)
             # Write losses to a file
             if epoch % 10 == 0:
                 self.loss_logger.info(
@@ -314,7 +336,10 @@ class Trainer:
                     for j1, j2 in itertools.combinations(range(style_np.shape[0]), 2)
                 ]
             ))
-            metrics = [min(style_shapiro), recon_loss_val.item(), avg_mutual_info, style_coupling,
+            if 'warp_and_scale' in self.__dict__ and self.warp_and_scale is True:
+                metrics = [0.0, recon_loss_val.item(), 0.0, 0.0, 0.0]
+            else:
+                metrics = [min(style_shapiro), recon_loss_val.item(), avg_mutual_info, style_coupling,
                        aux_loss_val.item() if aux_in is not None else 0]
             
             combined_metric = - (np.array(self.metric_weights) * np.array(metrics)).sum()
