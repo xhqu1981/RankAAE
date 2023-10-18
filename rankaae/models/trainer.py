@@ -408,11 +408,15 @@ class Trainer:
             recon_optimizer = None
 
         if self.lr_ratio_Mutual > 0:
-            mutual_info_optimizer = opt_cls(
-                [
+            if 'warp_and_scale' in self.__dict__ and self.warp_and_scale is True:
+                params = [{'params': self.mws_mapper.parameters()}]
+            else:
+                params = [
                     {'params': self.encoder.parameters()}, 
                     {'params': self.decoder.parameters()}
-                ],
+                ]
+            mutual_info_optimizer = opt_cls(
+                params,
                 lr = self.lr_ratio_Mutual * self.lr_base
             )
         else:
