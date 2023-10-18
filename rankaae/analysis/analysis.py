@@ -418,7 +418,7 @@ def evaluate_model(
     
     encoder = model['Encoder']
     decoder = model['Decoder']
-    if "Warp Scale Mapper" in model:
+    if "Warp Scale Mapper" in model and model["Warp Scale Mapper"] is not None:
         encoder = FCEncoderWithWarpScaling(encoder, model["Warp Scale Mapper"])
     encoder.eval()
     
