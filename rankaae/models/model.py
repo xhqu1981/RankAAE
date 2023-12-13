@@ -610,8 +610,7 @@ class DiscriminatorCNN(nn.Module):
         self.post = nn.Sequential(
             nn.BatchNorm1d(hiden_size, affine=False),
             nn.Dropout(p=dropout_rate),
-            nn.Linear(hiden_size, 2),
-            nn.LogSoftmax(dim=1)
+            nn.Linear(hiden_size, 1),
         )
 
         self.nstyle = nstyle

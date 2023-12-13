@@ -71,7 +71,6 @@ class Trainer:
 
         # loss functions
         mse_loss = nn.MSELoss().to(self.device)
-        nll_loss = nn.NLLLoss().to(self.device)
         bce_lgt_loss = nn.BCEWithLogitsLoss().to(self.device)
 
         # train network
@@ -152,7 +151,7 @@ class Trainer:
                         self.zerograd()
                         gen_loss_train = generator_loss(
                             spec_in, self.encoder, self.discriminator, 
-                            loss_fn=nll_loss,
+                            loss_fn=bce_lgt_loss,
                             device=self.device
                         )
                         gen_loss_train.backward()
@@ -311,7 +310,7 @@ class Trainer:
                         spec_in_val, 
                         self.encoder, 
                         self.discriminator, 
-                        loss_fn=nll_loss, 
+                        loss_fn=bce_lgt_loss, 
                         device=self.device
                     )
                 else:
