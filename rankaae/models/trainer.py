@@ -372,7 +372,7 @@ class Trainer:
             weight_decay = self.weight_decay
         )
 
-        if self.lr_ratio_Corr > 0:
+        if self.__dict__.get('lr_ratio_Corr', -1) > 0:
             corr_optimizer = opt_cls(
                 [
                     {'params': self.encoder.parameters()}
@@ -383,7 +383,7 @@ class Trainer:
         else:
             corr_optimizer = None
 
-        if self.lr_ratio_dis > 0:
+        if self.__dict__.get('lr_ratio_dis', -1) > 0:
             dis_optimizer = opt_cls(
                 [
                     {'params': self.discriminator.parameters()}
@@ -394,7 +394,7 @@ class Trainer:
         else:
             dis_optimizer = None
 
-        if self.lr_ratio_gen > 0:
+        if self.__dict__.get('lr_ratio_gen', -1) > 0:
             gen_optimizer = opt_cls(
                 [
                     {'params': self.encoder.parameters()}
@@ -405,7 +405,7 @@ class Trainer:
         else:
             gen_optimizer = None
 
-        if self.lr_ratio_adv > 0:
+        if self.__dict__.get('lr_ratio_adv', -1) > 0:
             adv_optimizer = opt_cls(
                 [
                     {'params': self.discriminator.parameters()},
