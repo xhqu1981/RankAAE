@@ -411,7 +411,7 @@ class Trainer:
                     {'params': self.discriminator.parameters()},
                     {'params': self.encoder.parameters()}
                 ],
-                lr = self.lr_ratio_dis * self.lr_base,
+                lr = self.lr_ratio_adv * self.lr_base,
                 betas = (self.dis_beta * 0.9, self.dis_beta * 0.009 + 0.99)
             )
         else:
