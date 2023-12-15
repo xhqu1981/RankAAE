@@ -14,7 +14,9 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from rankaae.models.model import (
     DiscriminatorCNN, 
-    DiscriminatorFC
+    DiscriminatorFC,
+    ExEncoder,
+    ExDecoder
 )
 from rankaae.models.dataloader import get_dataloaders
 from rankaae.utils.parameter import AE_CLS_DICT, OPTIM_DICT, Parameters
@@ -348,72 +350,51 @@ class Trainer:
         opt_cls = OPTIM_DICT[self.optimizer_name]
 
         recon_optimizer = opt_cls(
-            params = [
-                {'params': self.encoder.parameters()}, 
-                {'params': self.decoder.parameters()}
-            ],
+            params = [{'params': self.encoder.get_training_parameters()}, 
+                      {'params': self.decoder.get_training_parameters()}],
             lr = self.lr_ratio_Reconn * self.lr_base,
-            weight_decay = self.weight_decay    
-        )
+            weight_decay = self.weight_decay)
 
         mutual_info_optimizer = opt_cls(
-            params = [
-                {'params': self.encoder.parameters()}, 
-                {'params': self.decoder.parameters()}
-            ],
-            lr = self.lr_ratio_Mutual * self.lr_base
-        )
+            params = [{'params': self.encoder.get_training_parameters()}, 
+                      {'params': self.decoder.get_training_parameters()}],
+            lr = self.lr_ratio_Mutual * self.lr_base)
 
         smooth_optimizer = opt_cls(
-            params = [
-                {'params': self.decoder.parameters()}
-            ], 
+            params = [{'params': self.decoder.get_training_parameters()}], 
             lr = self.lr_ratio_Smooth * self.lr_base,
-            weight_decay = self.weight_decay
-        )
+            weight_decay = self.weight_decay)
 
         if self.__dict__.get('lr_ratio_Corr', -1) > 0:
             corr_optimizer = opt_cls(
-                [
-                    {'params': self.encoder.parameters()}
-                ],
+                [{'params': self.encoder.get_training_parameters()}],
                 lr = self.lr_ratio_Corr * self.lr_base,
-                weight_decay = self.weight_decay
-            )
+                weight_decay = self.weight_decay)
         else:
             corr_optimizer = None
 
         if self.__dict__.get('lr_ratio_dis', -1) > 0:
             dis_optimizer = opt_cls(
-                [
-                    {'params': self.discriminator.parameters()}
-                ],
+                [{'params': self.discriminator.parameters()}],
                 lr = self.lr_ratio_dis * self.lr_base,
-                betas = (self.dis_beta * 0.9, self.dis_beta * 0.009 + 0.99)
-            )
+                betas = (self.dis_beta * 0.9, self.dis_beta * 0.009 + 0.99))
         else:
             dis_optimizer = None
 
         if self.__dict__.get('lr_ratio_gen', -1) > 0:
             gen_optimizer = opt_cls(
-                [
-                    {'params': self.encoder.parameters()}
-                ],
+                [{'params': self.encoder.get_training_parameters()}],
                 lr = self.lr_ratio_gen * self.lr_base,
-                betas = (self.gen_beta * 0.9, self.gen_beta * 0.009 + 0.99)
-            )
+                betas = (self.gen_beta * 0.9, self.gen_beta * 0.009 + 0.99))
         else:
             gen_optimizer = None
 
         if self.__dict__.get('lr_ratio_adv', -1) > 0:
             adv_optimizer = opt_cls(
-                [
-                    {'params': self.discriminator.parameters()},
-                    {'params': self.encoder.parameters()}
-                ],
+                [{'params': self.discriminator.parameters()},
+                 {'params': self.encoder.get_training_parameters()}],
                 lr = self.lr_ratio_adv * self.lr_base,
-                betas = (self.dis_beta * 0.9, self.dis_beta * 0.009 + 0.99)
-            )
+                betas = (self.dis_beta * 0.9, self.dis_beta * 0.009 + 0.99))
         else:
             adv_optimizer = None
 
@@ -474,8 +455,8 @@ class Trainer:
             prev_fn = os.path.join(p.initial_guess_dir, *work_dir.split('/')[-2:], 'final.pt')
             logger.info(f"Reading model initial guess from {prev_fn}")
             mt = torch.load(prev_fn, map_location=device)
-            encoder = mt['Encoder']
-            decoder = mt['Decoder']
+            encoder = ExEncoder(p.dim_in, p.dropout_rate, enclosing_encoder=mt['Encoder'])
+            decoder = ExDecoder(p.dim_out, p.dropout_rate, enclosing_decoder=mt['Decoder'])
             discriminator = mt['Style Discriminator']
         else:
             # Generate encoder, decoder and discriminator
