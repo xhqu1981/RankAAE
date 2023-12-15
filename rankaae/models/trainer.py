@@ -204,8 +204,21 @@ class Trainer:
                     )
                     smooth_loss_train.backward()
                     self.optimizers["smoothness"].step()
-                
-                
+
+                # L1 regularization to encourage sparseness
+                if self.optimizers["l1_regularization"] is not None:
+                    self.zerograd()
+                    n_params = sum(
+                        [torch.numel(p) for p in 
+                         itertools.chain(self.encoder.get_training_parameters(), 
+                                         self.decoder.get_training_parameters())])
+                    l1_loss = -torch.sum(torch.cat(
+                        [torch.sum(torch.abs(p)) for p in 
+                         itertools.chain(self.encoder.get_training_parameters(), 
+                                         self.decoder.get_training_parameters())])) / n_params
+                    l1_loss.backward()
+                    self.optimizers["l1_regularization"].step()
+                  
                 # Init gradients
                 self.zerograd()
 
@@ -398,6 +411,15 @@ class Trainer:
         else:
             adv_optimizer = None
 
+        if self.__dict__.get('lr_ratio_L1', -1) > 0:
+            l1_regularization = opt_cls(
+                params = [{'params': self.encoder.get_training_parameters()}, 
+                          {'params': self.decoder.get_training_parameters()}],
+                lr = self.lr_ratio_L1 * self.lr_base,
+                weight_decay = 0)
+        else:
+            l1_regularization = None
+
         self.optimizers = {
             "reconstruction": recon_optimizer,
             "mutual_info": mutual_info_optimizer,
@@ -405,7 +427,8 @@ class Trainer:
             "correlation": corr_optimizer,
             "discriminator": dis_optimizer,
             "generator": gen_optimizer,
-            "adversarial": adv_optimizer
+            "adversarial": adv_optimizer,
+            "l1_regularization": l1_regularization
         }
 
 
