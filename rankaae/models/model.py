@@ -93,7 +93,7 @@ class FCEncoder(nn.Module):
         hidden_size=64):
         super(FCEncoder, self).__init__()
 
-        
+        self.dim_in = dim_in
         sequential_layers = [ # first layer
             nn.Linear(dim_in, hidden_size),
             nn.PReLU(num_parameters=hidden_size, init=0.01),
@@ -127,6 +127,9 @@ class FCEncoder(nn.Module):
         # need to call spec.unsqueeze to accomondate the channel sizes.
 
         return z_gauss
+    
+    def get_training_parameters(self):
+        return self.parameters()
 
 class FCDecoder(nn.Module):
 
@@ -175,13 +178,59 @@ class FCDecoder(nn.Module):
 
         self.main = nn.Sequential(*sequential_layers)
         
+        self.dim_out = dim_out
         self.nstyle = nstyle
         self.debug = debug
 
     def forward(self, z_gauss):
         spec = self.main(z_gauss)
         return spec
+    
+    def get_training_parameters(self):
+        return self.parameters()
 
+
+class ExEncoder(nn.Module):
+    def __init__(self,
+                 dim_in: int,
+                 dropout_rate: float,
+                 enclosing_encoder: FCEncoder):
+        super(ExEncoder, self).__init__()
+        self.ex_layers = nn.Sequential(
+            nn.Linear(dim_in, enclosing_encoder.dim_in),
+            nn.PReLU(num_parameters=enclosing_encoder.dim_in, init=0.01),
+            nn.BatchNorm1d(enclosing_encoder.dim_in, affine=False),
+            nn.Dropout(p=dropout_rate))
+        self.enclosing_encoder = enclosing_encoder
+
+    def forward(self, spec):
+        x = self.ex_layers(spec)
+        z_gauss = self.enclosing_encoder(x)
+        return z_gauss
+    
+    def get_training_parameters(self):
+        return self.ex_layers.parameters()
+
+
+class ExDecoder(nn.Module):
+    def __init__(self,
+                 dim_out: int,
+                 dropout_rate: float,
+                 enclosing_decoder: FCDecoder):
+        super(ExDecoder, self).__init__()
+        self.ex_layers = nn.Sequential(
+            nn.Dropout(p=dropout_rate),
+            nn.Linear(enclosing_decoder.dim_out, dim_out),
+            nn.ReLU())   
+        self.enclosing_decoder = enclosing_decoder
+
+    def forward(self, z_gauss):
+        x = self.enclosing_decoder(z_gauss)
+        spec = self.ex_layers(x)
+        return spec
+    
+    def get_training_parameters(self):
+        return self.ex_layers.parameters()
 
 class DiscriminatorCNN(nn.Module):
     def __init__(self, hiden_size=64, channels=2, kernel_size=5, dropout_rate=0.2, nstyle=5, noise=0.1):
