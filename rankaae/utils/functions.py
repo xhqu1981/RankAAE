@@ -171,7 +171,7 @@ def generator_loss(spec_in, encoder, D, loss_fn=None, device=None):
     return loss
 
 
-def mutual_info_loss(spec_in, styles, encoder, decoder, mws_mapper, mse_loss=None, device=None):
+def mutual_info_loss(spec_in, styles, encoder, decoder, n_aux, mse_loss=None, device=None):
     """
     Sample latent space, reconstruct spectra and feed back to encoder to reconstruct latent space.
     Return the loss between the sampled and reconstructed latent spacc.
@@ -184,20 +184,9 @@ def mutual_info_loss(spec_in, styles, encoder, decoder, mws_mapper, mse_loss=Non
 
     batch_size = spec_in.size()[0]
     nstyle = styles.size()[1]
-    if mws_mapper is not None:
-        wrapped_spec_in = mws_mapper(spec_in)
-        z_sample = encoder(wrapped_spec_in)
-    else:
-        z_sample = torch.randn(batch_size, nstyle, requires_grad=False, device=device)
-    
+    z_sample = torch.randn(batch_size, nstyle, requires_grad=False, device=device)
     z_recon = encoder(decoder(z_sample))
-
-    if mws_mapper is not None:
-        z_recon = z_recon.clone().detach()
-        t = z_recon
-        z_recon = z_sample
-        z_sample = t
-    mutual_info_loss = mse_loss(z_recon, z_sample)
+    mutual_info_loss = mse_loss(z_recon[:, :n_aux], z_sample[:, :n_aux])
     
     return mutual_info_loss
 

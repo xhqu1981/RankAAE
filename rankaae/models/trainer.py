@@ -14,8 +14,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from rankaae.models.model import (
     DiscriminatorCNN, 
-    DiscriminatorFC,
-    ModalityWarpAndScaleMapping
+    DiscriminatorFC
 )
 from rankaae.models.dataloader import get_dataloaders
 from rankaae.utils.parameter import AE_CLS_DICT, OPTIM_DICT, Parameters
@@ -38,7 +37,7 @@ class Trainer:
 
     def __init__(
         self, 
-        encoder, decoder, discriminator, mws_mapper, device, train_loader, val_loader,
+        encoder, decoder, discriminator, device, train_loader, val_loader,
         verbose=True, work_dir='.', tb_logdir="runs", 
         config_parameters = Parameters({}), # initialize Parameters with an empty dictonary.
         logger = logging.getLogger("training"),
@@ -50,7 +49,6 @@ class Trainer:
         self.encoder = encoder.to(self.device)
         self.decoder = decoder.to(self.device)
         self.discriminator = discriminator.to(self.device)
-        self.mws_mapper = mws_mapper.to(self.device) if mws_mapper is not None else None
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.verbose = verbose
@@ -92,8 +90,6 @@ class Trainer:
             self.encoder.train()
             self.decoder.train()
             self.discriminator.train()
-            if self.mws_mapper is not None:
-                self.mws_mapper.train()
 
             if self.gradient_reversal:
                 alpha_ = alpha(epoch/self.max_epoch, self.alpha_flat_step, self.alpha_limit)
@@ -103,11 +99,12 @@ class Trainer:
             # invalid samples
             for spec_in, aux_in in self.train_loader:
                 spec_in = spec_in.to(self.device)
+                n_aux = self.__dict__.get('n_aux', 0)
                 if self.train_loader.dataset.aux is None:
                     aux_in = None
                 else:
                     assert len(aux_in.size()) == 2
-                    n_aux = aux_in.size()[-1]
+                    assert n_aux == aux_in.size()[-1]
                     aux_in = aux_in.to(self.device)
                 
                 spec_in += torch.randn_like(spec_in, requires_grad=False) * self.spec_noise
@@ -176,40 +173,31 @@ class Trainer:
 
                 # Init gradients, reconstruction loss
                 self.zerograd()
-                if 'warp_and_scale' in self.__dict__ and self.warp_and_scale is True:
-                    reconn_spec_in = self.mws_mapper(spec_in)
-                else:
-                    reconn_spec_in = spec_in
-                spec_out  = self.decoder(self.encoder(reconn_spec_in))
-                if 'warp_and_scale' in self.__dict__ and self.warp_and_scale is True:
-                    spec_out = spec_out.clone().detach()
+                spec_out  = self.decoder(self.encoder(spec_in))
                 recon_loss_train = recon_loss(
-                    reconn_spec_in, spec_out, 
+                    spec_in, spec_out, 
                     scale=self.use_flex_spec_target,
                     device=self.device
                 )
                 recon_loss_train.backward()
                 self.optimizers["reconstruction"].step()
 
-                if self.optimizers["mutual_info"] is not None:
-                    # Init gradients, mutual information loss
-                    self.zerograd()
-                    styles = self.encoder(spec_in)
-                    mutual_info_loss_train = mutual_info_loss(
-                        spec_in, styles,
-                        encoder=self.encoder, 
-                        decoder=self.decoder,
-                        mws_mapper=self.mws_mapper, 
-                        mse_loss=mse_loss, 
-                        device=self.device
-                    )
-                    mutual_info_loss_train.backward()
-                    self.optimizers["mutual_info"].step()
-                else:
-                    mutual_info_loss_train = torch.tensor(0.0)
+                # Init gradients, mutual information loss
+                self.zerograd()
+                styles = self.encoder(spec_in)
+                mutual_info_loss_train = mutual_info_loss(
+                    spec_in, styles,
+                    encoder=self.encoder, 
+                    decoder=self.decoder,
+                    n_aux=n_aux, 
+                    mse_loss=mse_loss, 
+                    device=self.device
+                )
+                mutual_info_loss_train.backward()
+                self.optimizers["mutual_info"].step()
 
                 # Init gradients, smoothness loss
-                if epoch < self.epoch_stop_smooth and self.optimizers["smoothness"] is not None: # turn off smooth loss after 500
+                if epoch < self.epoch_stop_smooth: # turn off smooth loss after 500
                     self.zerograd()
                     spec_out  = self.decoder(self.encoder(spec_in)) # retain the graph?
                     smooth_loss_train = smoothness_loss(
@@ -219,8 +207,6 @@ class Trainer:
                     )
                     smooth_loss_train.backward()
                     self.optimizers["smoothness"].step()
-                else:
-                    smooth_loss_train = torch.tensor(0.0) 
                 
                 
                 # Init gradients
@@ -230,27 +216,21 @@ class Trainer:
             self.encoder.eval()
             self.decoder.eval()
             self.discriminator.eval()
-            if self.mws_mapper is not None:
-                self.mws_mapper.eval()
             
             spec_in_val, aux_in_val = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))]
             spec_in_val = spec_in_val.to(self.device)
-            if 'warp_and_scale' in self.__dict__ and self.warp_and_scale is True:
-                reconn_spec_in_val = self.mws_mapper(spec_in_val)
-            else:
-                reconn_spec_in_val = spec_in_val
-            z = self.encoder(reconn_spec_in_val)
+            z = self.encoder(spec_in_val)
             spec_out_val = self.decoder(z)
 
             if self.train_loader.dataset.aux is None:
                 aux_in = None
             else:
                 assert len(aux_in_val.size()) == 2
-                n_aux = aux_in_val.size()[-1]
+                assert n_aux == aux_in_val.size()[-1]
                 aux_in_val = aux_in_val.to(self.device)
             
             recon_loss_val = recon_loss(
-                reconn_spec_in_val, 
+                spec_in_val, 
                 spec_out_val, 
                 mse_loss=mse_loss, 
                 device=self.device
@@ -266,56 +246,46 @@ class Trainer:
             else:
                 aux_loss_val = torch.tensor(0.0)
 
-            if self.optimizers["smoothness"] is not None:
-                smooth_loss_val = smoothness_loss(
-                    spec_out_val, 
-                    gs_kernel_size=self.gau_kernel_size,
-                    device=self.device
-                )
-            else:
-                smooth_loss_val = torch.tensor(0.0)
+            smooth_loss_val = smoothness_loss(
+                spec_out_val, 
+                gs_kernel_size=self.gau_kernel_size,
+                device=self.device
+            )
 
-            if self.optimizers["mutual_info"] is not None:  
-                mutual_info_loss_val =  mutual_info_loss(
-                    spec_in_val, z,
-                    encoder=self.encoder, 
-                    decoder=self.decoder, 
-                    mws_mapper=self.mws_mapper,
-                    mse_loss=mse_loss, 
-                    device=self.device
-                )
-            else:
-                mutual_info_loss_val = torch.tensor(0.0)
+            mutual_info_loss_val =  mutual_info_loss(
+                spec_in_val, z,
+                encoder=self.encoder, 
+                decoder=self.decoder, 
+                n_aux=n_aux,
+                mse_loss=mse_loss, 
+                device=self.device
+            )
 
             if self.gradient_reversal:
-                if self.optimizers["adversarial"] is not None:
-                    dis_loss_val = adversarial_loss(
-                        spec_in_val, z, self.discriminator, alpha_,
-                        batch_size=self.batch_size, 
-                        nll_loss=bce_lgt_loss, 
-                        device=self.device
-                    )
-                else:
-                    dis_loss_val = torch.tensor(0.0)
+                assert self.optimizers["adversarial"] is not None
+                dis_loss_val = adversarial_loss(
+                    spec_in_val, z, self.discriminator, alpha_,
+                    batch_size=self.batch_size, 
+                    nll_loss=bce_lgt_loss, 
+                    device=self.device
+                )
                 gen_loss_val = torch.tensor(0.0)
             else:
-                if self.optimizers["discriminator"] is not None and self.optimizers["generator"] is not None:
-                    dis_loss_val = discriminator_loss(
-                        z, self.discriminator, 
-                        batch_size=len(z),
-                        loss_fn=bce_lgt_loss,
-                        device=self.device
-                    )
-                    gen_loss_val = generator_loss(
-                        spec_in_val, 
-                        self.encoder, 
-                        self.discriminator, 
-                        loss_fn=bce_lgt_loss, 
-                        device=self.device
-                    )
-                else:
-                    dis_loss_val = torch.tensor(0.0)
-                    gen_loss_val = torch.tensor(0.0)
+                assert self.optimizers["discriminator"] is not None and self.optimizers["generator"] is not None
+                dis_loss_val = discriminator_loss(
+                    z, self.discriminator, 
+                    batch_size=len(z),
+                    loss_fn=bce_lgt_loss,
+                    device=self.device
+                )
+                gen_loss_val = generator_loss(
+                    spec_in_val, 
+                    self.encoder, 
+                    self.discriminator, 
+                    loss_fn=bce_lgt_loss, 
+                    device=self.device
+                )
+                
             # Write losses to a file
             if epoch % 10 == 0:
                 self.loss_logger.info(
@@ -330,8 +300,7 @@ class Trainer:
             
             model_dict = {"Encoder": self.encoder,
                           "Decoder": self.decoder,
-                          "Style Discriminator": self.discriminator,
-                          "Warp Scale Mapper": self.mws_mapper}
+                          "Style Discriminator": self.discriminator}
             
             style_np = z.detach().clone().cpu().numpy().T
             style_shapiro = [shapiro(x).statistic for x in style_np]
@@ -341,11 +310,8 @@ class Trainer:
                     for j1, j2 in itertools.combinations(range(style_np.shape[0]), 2)
                 ]
             ))
-            if 'warp_and_scale' in self.__dict__ and self.warp_and_scale is True:
-                metrics = [0.0, recon_loss_val.item(), mutual_info_loss_val.item(), 0.0, 0.0]
-            else:
-                metrics = [min(style_shapiro), recon_loss_val.item(), mutual_info_loss_val.item(), style_coupling,
-                           aux_loss_val.item() if aux_in is not None else 0]
+            metrics = [min(style_shapiro), recon_loss_val.item(), mutual_info_loss_val.item(), style_coupling,
+                        aux_loss_val.item() if aux_in is not None else 0]
             
             combined_metric = - (np.array(self.metric_weights) * np.array(metrics)).sum()
             if combined_metric > best_combined_metric:
@@ -372,8 +338,6 @@ class Trainer:
         self.encoder.zero_grad()
         self.decoder.zero_grad()
         self.discriminator.zero_grad()
-        if self.mws_mapper is not None:
-            self.mws_mapper.zero_grad()
 
     def get_style_distribution_plot(self, z):
         # noinspection PyTypeChecker
@@ -388,49 +352,30 @@ class Trainer:
     def load_optimizers(self):
         opt_cls = OPTIM_DICT[self.optimizer_name]
 
-        if self.lr_ratio_Reconn > 0:
-            if 'freeze_core' in self.__dict__ and self.freeze_core is True:
-                params = []
-            else:
-                params = [
-                    {'params': self.encoder.parameters()}, 
-                    {'params': self.decoder.parameters()}
-                ]
-            if 'warp_and_scale' in self.__dict__ and self.warp_and_scale is True:
-                params.append({'params': self.mws_mapper.parameters()})
-            recon_optimizer = opt_cls(
-                params,
-                lr = self.lr_ratio_Reconn * self.lr_base,
-                weight_decay = self.weight_decay    
-            )
-        else:
-            recon_optimizer = None
+        recon_optimizer = opt_cls(
+            params = [
+                {'params': self.encoder.parameters()}, 
+                {'params': self.decoder.parameters()}
+            ],
+            lr = self.lr_ratio_Reconn * self.lr_base,
+            weight_decay = self.weight_decay    
+        )
 
-        if self.lr_ratio_Mutual > 0:
-            if 'warp_and_scale' in self.__dict__ and self.warp_and_scale is True:
-                params = [{'params': self.mws_mapper.parameters()}]
-            else:
-                params = [
-                    {'params': self.encoder.parameters()}, 
-                    {'params': self.decoder.parameters()}
-                ]
-            mutual_info_optimizer = opt_cls(
-                params,
-                lr = self.lr_ratio_Mutual * self.lr_base
-            )
-        else:
-            mutual_info_optimizer = None
+        mutual_info_optimizer = opt_cls(
+            params = [
+                {'params': self.encoder.parameters()}, 
+                {'params': self.decoder.parameters()}
+            ],
+            lr = self.lr_ratio_Mutual * self.lr_base
+        )
 
-        if self.lr_ratio_Smooth > 0:
-            smooth_optimizer = opt_cls(
-                [
-                    {'params': self.decoder.parameters()}
-                ], 
-                lr = self.lr_ratio_Smooth * self.lr_base,
-                weight_decay = self.weight_decay
-            )
-        else:
-            smooth_optimizer = None
+        smooth_optimizer = opt_cls(
+            params = [
+                {'params': self.decoder.parameters()}
+            ], 
+            lr = self.lr_ratio_Smooth * self.lr_base,
+            weight_decay = self.weight_decay
+        )
 
         if self.lr_ratio_Corr > 0:
             corr_optimizer = opt_cls(
@@ -465,7 +410,7 @@ class Trainer:
         else:
             gen_optimizer = None
 
-        if self.lr_ratio_dis > 0:
+        if self.lr_ratio_adv > 0:
             adv_optimizer = opt_cls(
                 [
                     {'params': self.discriminator.parameters()},
@@ -562,20 +507,13 @@ class Trainer:
                     nstyle=p.nstyle, dropout_rate=p.dis_dropout_rate, noise=p.dis_noise,
                     layers = p.FC_discriminator_layers
                 )
-        if 'warp_and_scale' in p.__dict__ and p.warp_and_scale is True:
-            mws_mapper = ModalityWarpAndScaleMapping(ngrid=p.dim_in, seg_size=p.warp_size)
-        else:
-            mws_mapper = None
 
         for net in [encoder, decoder, discriminator]:
             net.to(device)
-        
-        if mws_mapper is not None:
-            mws_mapper.to(device)
 
         # Load trainer
         trainer = Trainer(
-            encoder, decoder, discriminator, mws_mapper, device, dl_train, dl_val,
+            encoder, decoder, discriminator, device, dl_train, dl_val,
             verbose=verbose, work_dir=work_dir,
             config_parameters=p, logger=logger, loss_logger=loss_logger
         )
