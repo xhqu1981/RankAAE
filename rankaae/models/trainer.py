@@ -107,6 +107,7 @@ class Trainer:
                     assert n_aux == aux_in.size()[-1]
                     aux_in = aux_in.to(self.device)
                 
+                spec_in_no_noise = spec_in.clone()
                 spec_in += torch.randn_like(spec_in, requires_grad=False) * self.spec_noise
                 if self.__dict__.get('randomize_spec_height', False):
                     spec_in *= 1.0 + torch.randn(spec_in.size()[0], device=spec_in.device, requires_grad=False)[:, None] * self.spec_height_noise
@@ -115,47 +116,41 @@ class Trainer:
 
                 # Use gradient reversal method or standard GAN structure
                 if self.gradient_reversal:
-                    if self.optimizers["adversarial"] is not None:
-                        self.zerograd()
-                        dis_loss_train = adversarial_loss(
-                            spec_in, styles, self.discriminator, alpha_,
-                            batch_size=self.batch_size, 
-                            nll_loss=bce_lgt_loss, 
-                            device=self.device
-                        )
-                        dis_loss_train.backward()
-                        self.optimizers["adversarial"].step()
-                        gen_loss_train = torch.tensor(0)
-                    else:
-                        dis_loss_train = torch.tensor(0.0)
-                        gen_loss_train = torch.tensor(0.0)
+                    assert self.optimizers["adversarial"] is not None
+                    self.zerograd()
+                    dis_loss_train = adversarial_loss(
+                        spec_in, styles, self.discriminator, alpha_,
+                        batch_size=self.batch_size, 
+                        nll_loss=bce_lgt_loss, 
+                        device=self.device
+                    )
+                    dis_loss_train.backward()
+                    self.optimizers["adversarial"].step()
+                    gen_loss_train = torch.tensor(0.0)
                 else:
-                    if self.optimizers["discriminator"] is not None and self.optimizers["generator"] is not None:
-                        # Init gradients, discriminator loss
-                        self.zerograd()
-                        styles = self.encoder(spec_in)
+                    assert self.optimizers["discriminator"] is not None and self.optimizers["generator"] is not None
+                    # Init gradients, discriminator loss
+                    self.zerograd()
+                    styles = self.encoder(spec_in)
 
-                        dis_loss_train = discriminator_loss(
-                            styles, self.discriminator, 
-                            batch_size=self.batch_size, 
-                            loss_fn=bce_lgt_loss,
-                            device=self.device
-                        )
-                        dis_loss_train.backward()
-                        self.optimizers["discriminator"].step()
+                    dis_loss_train = discriminator_loss(
+                        styles, self.discriminator, 
+                        batch_size=self.batch_size, 
+                        loss_fn=bce_lgt_loss,
+                        device=self.device
+                    )
+                    dis_loss_train.backward()
+                    self.optimizers["discriminator"].step()
 
-                        # Init gradients, generator loss
-                        self.zerograd()
-                        gen_loss_train = generator_loss(
-                            spec_in, self.encoder, self.discriminator, 
-                            loss_fn=bce_lgt_loss,
-                            device=self.device
-                        )
-                        gen_loss_train.backward()
-                        self.optimizers["generator"].step()
-                    else:
-                        dis_loss_train = torch.tensor(0.0)
-                        gen_loss_train = torch.tensor(0.0)
+                    # Init gradients, generator loss
+                    self.zerograd()
+                    gen_loss_train = generator_loss(
+                        spec_in, self.encoder, self.discriminator, 
+                        loss_fn=bce_lgt_loss,
+                        device=self.device
+                    )
+                    gen_loss_train.backward()
+                    self.optimizers["generator"].step()
                 
                 if self.optimizers["correlation"] is not None:
                     # Kendall constraint
@@ -175,7 +170,7 @@ class Trainer:
                 self.zerograd()
                 spec_out  = self.decoder(self.encoder(spec_in))
                 recon_loss_train = recon_loss(
-                    spec_in, spec_out, 
+                    spec_in_no_noise, spec_out, 
                     scale=self.use_flex_spec_target,
                     device=self.device
                 )
