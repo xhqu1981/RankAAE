@@ -223,6 +223,7 @@ class ExDecoder(nn.Module):
             nn.Linear(enclosing_decoder.dim_out, dim_out),
             nn.ReLU())   
         self.enclosing_decoder = enclosing_decoder
+        self.nstyle = enclosing_decoder.nstyle
 
     def forward(self, z_gauss):
         x = self.enclosing_decoder(z_gauss)
