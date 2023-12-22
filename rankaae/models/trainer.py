@@ -218,6 +218,17 @@ class Trainer:
                                          self.decoder.get_training_parameters())])) / n_params
                     l1_loss.backward()
                     self.optimizers["l1_regularization"].step()
+
+                if self.optimizers["exscf"] is not None:
+                    self.zerograd()
+                    ex_spec_in = self.encoder.ex_layers(spec_in)
+                    spec_out  = self.decoder.enclosing_decoder(self.encoder(spec_in)).detach()
+                    exscf_loss_train = recon_loss(
+                        spec_out, ex_spec_in,
+                        scale=self.use_flex_spec_target,
+                        device=self.device)
+                    exscf_loss_train.backward()
+                    self.optimizers["exscf"].step()
                   
                 # Init gradients
                 self.zerograd()
@@ -420,6 +431,16 @@ class Trainer:
         else:
             l1_regularization = None
 
+        if self.__dict__.get('lr_ratio_exscf', -1) > 0:
+            assert isinstance(self.encoder, ExEncoder)
+            assert isinstance(self.decoder, ExDecoder)
+            exscf_optimizer = opt_cls(
+                params = [{'params': self.encoder.get_training_parameters()}],
+                lr = self.lr_ratio_exscf * self.lr_base,
+                weight_decay = 0)
+        else:
+            exscf_optimizer = None
+
         self.optimizers = {
             "reconstruction": recon_optimizer,
             "mutual_info": mutual_info_optimizer,
@@ -428,7 +449,8 @@ class Trainer:
             "discriminator": dis_optimizer,
             "generator": gen_optimizer,
             "adversarial": adv_optimizer,
-            "l1_regularization": l1_regularization
+            "l1_regularization": l1_regularization,
+            "exscf": exscf_optimizer
         }
 
 

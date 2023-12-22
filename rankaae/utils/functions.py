@@ -94,8 +94,6 @@ def recon_loss(spec_in, spec_out, scale=False, mse_loss=None, device=None):
     if mse_loss is None:
         mse_loss = nn.MSELoss().to(device)
 
-    spec_in = spec_in.clone()
-
     if not scale:
         recon_loss = mse_loss(spec_out, spec_in)
     else:
