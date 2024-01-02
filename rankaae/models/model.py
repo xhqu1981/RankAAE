@@ -197,10 +197,8 @@ class ExEncoder(nn.Module):
                  enclosing_encoder: FCEncoder):
         super(ExEncoder, self).__init__()
         self.ex_layers = nn.Sequential(
-            nn.Linear(dim_in, enclosing_encoder.dim_in),
-            nn.PReLU(num_parameters=enclosing_encoder.dim_in, init=0.01),
-            nn.BatchNorm1d(enclosing_encoder.dim_in, affine=False),
-            nn.Dropout(p=dropout_rate))
+            nn.Dropout(p=dropout_rate),
+            nn.Linear(dim_in, enclosing_encoder.dim_in))
         self.enclosing_encoder = enclosing_encoder
 
     def forward(self, spec):
@@ -220,8 +218,7 @@ class ExDecoder(nn.Module):
         super(ExDecoder, self).__init__()
         self.ex_layers = nn.Sequential(
             nn.Dropout(p=dropout_rate),
-            nn.Linear(enclosing_decoder.dim_out, dim_out),
-            nn.ReLU())   
+            nn.Linear(enclosing_decoder.dim_out, dim_out))   
         self.enclosing_decoder = enclosing_decoder
         self.nstyle = enclosing_decoder.nstyle
 
