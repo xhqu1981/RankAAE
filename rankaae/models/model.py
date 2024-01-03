@@ -21,158 +21,6 @@ class GradientReversalLayer(Function):
             grad_input = -grad_input * ctx.beta
         return grad_input, None
 
-class EncodingBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, in_len, out_len, kernel_size=7, stride=2, excitation=4,
-                 dropout_rate=0.2):
-        super(EncodingBlock, self).__init__()
-        if in_channels > 1:
-            self.bn1 = nn.BatchNorm1d(in_channels, affine=False)
-        else:
-            self.bn1 = None
-        self.relu1 = nn.PReLU(num_parameters=out_channels, init=0.01)
-        self.conv1 = nn.Conv1d(in_channels, out_channels, kernel_size=kernel_size, padding=(kernel_size - 1) // 2,
-                               padding_mode='replicate', stride=in_len//(out_len*stride))
-        self.bn2 = nn.BatchNorm1d(out_channels, affine=False)
-        self.relu2 = nn.PReLU(num_parameters=out_channels, init=0.01)
-        self.conv2 = nn.Conv1d(out_channels, out_channels, kernel_size=kernel_size, padding=(kernel_size - 1) // 2,
-                               stride=stride)
-
-        if in_len > 10:
-            self.dropout_1 = nn.Dropout(p=dropout_rate)
-        else:
-            self.dropout_1 = None
-        self.fc1 = nn.Linear(in_len, excitation)
-        self.relu_excit_1 = nn.PReLU(num_parameters=in_channels, init=0.01)
-        self.fc2 = nn.Linear(excitation, out_len)
-        self.relu_excit_2 = nn.PReLU(num_parameters=in_channels, init=0.01)
-        if in_channels != out_channels:
-            self.bn_excit = nn.BatchNorm1d(in_channels, affine=False)
-            self.relu_excit_3 = nn.PReLU(num_parameters=out_channels, init=0.01)
-            self.conv_excit = nn.Conv1d(in_channels, out_channels, kernel_size=1, stride=1,
-                                        groups=math.gcd(in_channels, out_channels))
-        else:
-            self.bn_excit = None
-            self.relu_excit_3 = None
-            self.conv_excit = None
-
-        if stride > 1 or (in_channels != out_channels):
-            self.conv_short = nn.Conv1d(in_channels, out_channels, kernel_size=in_len//out_len, stride=in_len//out_len,
-                                        groups=math.gcd(in_channels, out_channels))
-            self.relu_short = nn.PReLU(num_parameters=out_channels, init=0.01)
-        else:
-            self.conv_short = None
-
-    def forward(self, x):
-
-        if self.bn1 is not None:
-            out = self.bn1(x)
-        else:
-            out = x
-        residual = out
-        out = self.conv1(out)
-        out = self.relu1(out)
-
-        out = self.bn2(out)
-        out = self.conv2(out)
-        out = self.relu2(out)
-
-        if self.conv_short is not None:
-            res = self.conv_short(residual)
-            res = self.relu_short(res)
-        else:
-            res = residual
-
-        if self.dropout_1 is not None:
-            excit = self.dropout_1(residual)
-        else:
-            excit = residual
-        excit = self.fc1(excit)
-        excit = self.relu_excit_1(excit)
-
-        excit = self.fc2(excit)
-        excit = self.relu_excit_2(excit)
-        if self.conv_excit is not None:
-            excit = self.bn_excit(excit)
-            excit = self.conv_excit(excit)
-            excit = self.relu_excit_3(excit)
-
-        out = out + res + excit
-        return out
-
-
-class DecodingBlock(nn.Module):
-
-    def __init__(self, in_channels, out_channels, in_len, excitation=4, dropout_rate=0.2, out_len=None):
-        super(DecodingBlock, self).__init__()
-        if out_len is None:
-            out_len = in_len * 4
-        if in_len > 1:
-            self.bn1 = nn.BatchNorm1d(in_channels, affine=False)
-        else:
-            self.bn1 = None
-        self.relu1 = nn.PReLU(num_parameters=out_channels, init=0.01)
-        self.conv1 = nn.ConvTranspose1d(
-            in_channels, out_channels, kernel_size=2, stride=2)
-        self.bn2 = nn.BatchNorm1d(out_channels, affine=False)
-        self.relu2 = nn.PReLU(num_parameters=out_channels, init=0.01)
-        self.conv2 = nn.ConvTranspose1d(
-            out_channels, out_channels, kernel_size=out_len//(in_len*2), stride=out_len//(in_len*2))
-
-        if in_len > 10:
-            self.dropout_1 = nn.Dropout(p=dropout_rate)
-        else:
-            self.dropout_1 = None
-        self.fc1 = nn.Linear(in_len, excitation)
-        self.relu_excit_1 = nn.PReLU(num_parameters=in_channels, init=0.01)
-        self.fc2 = nn.Linear(excitation, out_len)
-        self.relu_excit_2 = nn.PReLU(num_parameters=in_channels, init=0.01)
-        if in_channels != out_channels:
-            self.bn_excit = nn.BatchNorm1d(in_channels, affine=False)
-            self.relu_excit_3 = nn.PReLU(
-                num_parameters=out_channels, init=0.01)
-            self.conv_excit = nn.Conv1d(in_channels, out_channels, kernel_size=1, stride=1,
-                                        groups=math.gcd(in_channels, out_channels))
-        else:
-            self.bn_excit = None
-            self.relu_excit_3 = None
-            self.conv_excit = None
-
-        self.conv_short = nn.ConvTranspose1d(in_channels, out_channels, kernel_size=out_len//in_len, stride=out_len//in_len,
-                                             groups=math.gcd(in_channels, out_channels))
-        self.relu_short = nn.PReLU(num_parameters=out_channels, init=0.01)
-
-    def forward(self, x):
-        if self.bn1 is not None:
-            out = self.bn1(x)
-        else:
-            out = x
-        residual = out
-        out = self.conv1(out)
-        out = self.relu1(out)
-
-        out = self.bn2(out)
-        out = self.conv2(out)
-        out = self.relu2(out)
-
-        res = self.conv_short(residual)
-        res = self.relu_short(res)
-
-        if self.dropout_1 is not None:
-            excit = self.dropout_1(residual)
-        else:
-            excit = residual
-        excit = self.fc1(excit)
-        excit = self.relu_excit_1(excit)
-        excit = self.fc2(excit)
-        excit = self.relu_excit_2(excit)
-        if self.conv_excit is not None:
-            excit = self.bn_excit(excit)
-            excit = self.conv_excit(excit)
-            excit = self.relu_excit_3(excit)
-
-        out = out + res + excit
-        return out
-
 
 class GaussianSmoothing(nn.Module):
     def __init__(self, channels, kernel_size, sigma, dim=2, device='cpu'):
@@ -230,104 +78,6 @@ class GaussianSmoothing(nn.Module):
         return conv(x, weight=self.weight, groups=self.groups)
 
 
-class Encoder(nn.Module):
-    """ front end part of discriminator and Q"""
-
-    def __init__(self, dropout_rate=0.2, nstyle=5, dim_in=256):
-        super(Encoder, self).__init__()
-        self.main = nn.Sequential(
-            EncodingBlock(in_channels=1, out_channels=4, in_len=dim_in, out_len=128, kernel_size=11, stride=2,
-                          excitation=4, dropout_rate=dropout_rate),
-            EncodingBlock(in_channels=4, out_channels=4, in_len=128, out_len=64, kernel_size=11, stride=2, excitation=4,
-                          dropout_rate=dropout_rate),
-            EncodingBlock(in_channels=4, out_channels=4, in_len=64, out_len=32, kernel_size=7, stride=2, excitation=2,
-                          dropout_rate=dropout_rate),
-            EncodingBlock(in_channels=4, out_channels=4, in_len=32, out_len=16, kernel_size=7, stride=2, excitation=2,
-                          dropout_rate=dropout_rate),
-            EncodingBlock(in_channels=4, out_channels=4, in_len=16, out_len=8, kernel_size=5, stride=2, excitation=1,
-                          dropout_rate=dropout_rate)
-        )
-        self.lin3 = nn.Linear(32, nstyle)
-        self.bn_style = nn.BatchNorm1d(nstyle, affine=False)
-
-    def forward(self, spec):
-        batch_size = spec.size()[0]
-        output = spec.unsqueeze(dim=1)
-        output = self.main(output)
-        output = output.reshape(batch_size, 32)
-
-        z_gauss = self.lin3(output)
-        z_gauss = self.bn_style(z_gauss)
-
-        return z_gauss
-
-
-class CompactEncoder(nn.Module):
-    """ front end part of discriminator and Q"""
-
-    def __init__(
-        self, 
-        dropout_rate = 0.2, 
-        nstyle = 5, 
-        dim_in = 256,
-        n_layers = 3 # A place holder here for now . Only effective for FC model.
-    ):
-        super(CompactEncoder, self).__init__()
-        self.main = nn.Sequential(
-            EncodingBlock(in_channels=1, out_channels=4, in_len=dim_in, out_len=64, kernel_size=11, stride=2,
-                          excitation=4, dropout_rate=dropout_rate),
-            EncodingBlock(in_channels=4, out_channels=4, in_len=64, out_len=16, kernel_size=7, stride=2, excitation=2,
-                          dropout_rate=dropout_rate),
-            EncodingBlock(in_channels=4, out_channels=4, in_len=16, out_len=8, kernel_size=5, stride=2, excitation=1,
-                          dropout_rate=dropout_rate)
-        )
-        self.lin3 = nn.Linear(32, nstyle)
-        self.bn_style = nn.BatchNorm1d(nstyle, affine=False)
-
-    def forward(self, spec):
-        batch_size = spec.size()[0]
-        output = spec.unsqueeze(dim=1)
-        output = self.main(output)
-        output = output.reshape(batch_size, 32)
-
-        z_gauss = self.lin3(output)
-        z_gauss = self.bn_style(z_gauss)
-
-        return z_gauss
-
-
-class QvecEncoder(nn.Module):
-    """ for Q vector only"""
-
-    def __init__(self, dropout_rate=0.2, nstyle=5, dim_in=12):
-        super(QvecEncoder, self).__init__()
-        self.main = nn.Sequential(
-            nn.Linear(dim_in, 8),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(8, 6),
-            nn.ReLU(),
-            nn.BatchNorm1d(6, affine=False),
-            nn.Linear(6, 4),
-            nn.Softplus(beta=2),
-            nn.BatchNorm1d(4, affine=False),
-            nn.Linear(4, nstyle),
-            nn.BatchNorm1d(nstyle, affine=False)
-        )
-
-        self.short_cut = nn.Sequential(
-            nn.Linear(dim_in, 8),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(8, nstyle),
-            nn.BatchNorm1d(nstyle, affine=False)
-        )
-
-    def forward(self, q_vec):
-        z_gauss = self.main(q_vec) + self.short_cut(q_vec)
-        return z_gauss
-
-
 class FCEncoder(nn.Module):
     
     """
@@ -343,7 +93,7 @@ class FCEncoder(nn.Module):
         hidden_size=64):
         super(FCEncoder, self).__init__()
 
-        
+        self.dim_in = dim_in
         sequential_layers = [ # first layer
             nn.Linear(dim_in, hidden_size),
             nn.PReLU(num_parameters=hidden_size, init=0.01),
@@ -377,144 +127,9 @@ class FCEncoder(nn.Module):
         # need to call spec.unsqueeze to accomondate the channel sizes.
 
         return z_gauss
-
-
-class Decoder(nn.Module):
-
-    def __init__(self, dropout_rate=0.2, nstyle=5, debug=False, last_layer_activation='ReLu'):
-        super(Decoder, self).__init__()
-
-        if last_layer_activation == 'ReLu':
-            ll_act = nn.ReLU()
-        elif last_layer_activation == 'Softplus':
-            ll_act = nn.Softplus(beta=2)
-        else:
-            raise ValueError(
-                f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
-
-        self.main = nn.Sequential(
-            DecodingBlock(in_channels=nstyle, out_channels=8, in_len=1, excitation=1,
-                          dropout_rate=dropout_rate),
-            DecodingBlock(in_channels=8, out_channels=4, in_len=4,
-                          excitation=2, dropout_rate=dropout_rate),
-            DecodingBlock(in_channels=4, out_channels=4, in_len=16,
-                          excitation=2, dropout_rate=dropout_rate),
-            DecodingBlock(in_channels=4, out_channels=4, in_len=64,
-                          excitation=4, dropout_rate=dropout_rate),
-            EncodingBlock(in_channels=4, out_channels=4, in_len=256, out_len=256, kernel_size=11, stride=1,
-                          excitation=2, dropout_rate=dropout_rate),
-            EncodingBlock(in_channels=4, out_channels=4, in_len=256, out_len=256, kernel_size=11, stride=1,
-                          excitation=2, dropout_rate=dropout_rate),
-            EncodingBlock(in_channels=4, out_channels=2, in_len=256, out_len=256, kernel_size=11, stride=1,
-                          excitation=2, dropout_rate=dropout_rate),
-            EncodingBlock(in_channels=2, out_channels=2, in_len=256, out_len=256, kernel_size=11, stride=1,
-                          excitation=2, dropout_rate=dropout_rate),
-            EncodingBlock(in_channels=2, out_channels=2, in_len=256, out_len=256, kernel_size=11, stride=1,
-                          excitation=2, dropout_rate=dropout_rate),
-            nn.BatchNorm1d(2, affine=False),
-            nn.Conv1d(2, 1, kernel_size=1, stride=1),
-            ll_act
-        )
-
-        self.nstyle = nstyle
-        self.debug = debug
-
-    def forward(self, z_gauss):
-        if self.debug:
-            assert z_gauss.size()[1] == self.nstyle
-        x = z_gauss.unsqueeze(dim=2)
-        spec = self.main(x)
-        spec = spec.squeeze(dim=1)
-        return spec
-
-
-class CompactDecoder(nn.Module):
-
-    def __init__(
-        self, 
-        dropout_rate = 0.2, 
-        nstyle = 5, 
-        debug = False, 
-        last_layer_activation = 'ReLu', 
-        dim_out = 256,
-        n_layers = 3 # A place holder here for now . Only effective for FC model.
-    ):
-        super(CompactDecoder, self).__init__()
-
-        if last_layer_activation == 'ReLu':
-            ll_act = nn.ReLU()
-        elif last_layer_activation == 'Softplus':
-            ll_act = nn.Softplus(beta=2)
-        else:
-            raise ValueError(
-                f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
-
-        self.main = nn.Sequential(
-            DecodingBlock(in_channels=nstyle, out_channels=8, in_len=1, excitation=1, out_len=8,
-                          dropout_rate=dropout_rate),
-            DecodingBlock(in_channels=8, out_channels=4, in_len=8, excitation=2, out_len=64,
-                          dropout_rate=dropout_rate),
-            DecodingBlock(in_channels=4, out_channels=4, in_len=64,
-                          excitation=4, dropout_rate=dropout_rate),
-            EncodingBlock(in_channels=4, out_channels=4, in_len=256, out_len=dim_out, kernel_size=11, stride=1,
-                          excitation=2, dropout_rate=dropout_rate),
-            nn.BatchNorm1d(4, affine=False),
-            nn.Conv1d(4, 1, kernel_size=1, stride=1),
-            ll_act
-        )
-
-        self.nstyle = nstyle
-        self.debug = debug
-
-    def forward(self, z_gauss):
-        if self.debug:
-            assert z_gauss.size()[1] == self.nstyle
-        x = z_gauss.unsqueeze(dim=2)
-        spec = self.main(x)
-        spec = spec.squeeze(dim=1)
-        return spec
-
-
-class QvecDecoder(nn.Module):
-
-    def __init__(self, dropout_rate=0.2, nstyle=5, debug=False, last_layer_activation='ReLu', dim_out=12):
-        super(QvecDecoder, self).__init__()
-
-        if last_layer_activation == 'ReLu':
-            ll_act = nn.ReLU()
-        elif last_layer_activation == 'Softplus':
-            ll_act = nn.Softplus(beta=2)
-        else:
-            raise ValueError(
-                f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
-
-        self.main = nn.Sequential(
-            nn.Linear(nstyle, 4),
-            nn.ReLU(),
-            nn.BatchNorm1d(4, affine=False),
-            nn.Linear(4, 6),
-            nn.ReLU(),
-            nn.BatchNorm1d(6, affine=False),
-            nn.Linear(6, 8),
-            ll_act,
-            nn.Dropout(dropout_rate),
-            nn.Linear(8, dim_out)
-        )
-
-        self.short_cut = nn.Sequential(
-            nn.Linear(nstyle, 8),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),
-            nn.Linear(8, dim_out)
-        )
-
-        self.nstyle = nstyle
-        self.debug = debug
-
-    def forward(self, z_gauss):
-        q_vec = self.main(z_gauss) + self.short_cut(z_gauss)
-        return q_vec
-
+    
+    def get_training_parameters(self):
+        return self.parameters()
 
 class FCDecoder(nn.Module):
 
@@ -563,13 +178,57 @@ class FCDecoder(nn.Module):
 
         self.main = nn.Sequential(*sequential_layers)
         
+        self.dim_out = dim_out
         self.nstyle = nstyle
         self.debug = debug
 
     def forward(self, z_gauss):
         spec = self.main(z_gauss)
         return spec
+    
+    def get_training_parameters(self):
+        return self.parameters()
 
+
+class ExEncoder(nn.Module):
+    def __init__(self,
+                 dim_in: int,
+                 dropout_rate: float,
+                 enclosing_encoder: FCEncoder):
+        super(ExEncoder, self).__init__()
+        self.ex_layers = nn.Sequential(
+            nn.Dropout(p=dropout_rate),
+            nn.Linear(dim_in, enclosing_encoder.dim_in))
+        self.enclosing_encoder = enclosing_encoder
+
+    def forward(self, spec):
+        x = self.ex_layers(spec)
+        z_gauss = self.enclosing_encoder(x)
+        return z_gauss
+    
+    def get_training_parameters(self):
+        return self.ex_layers.parameters()
+
+
+class ExDecoder(nn.Module):
+    def __init__(self,
+                 dim_out: int,
+                 dropout_rate: float,
+                 enclosing_decoder: FCDecoder):
+        super(ExDecoder, self).__init__()
+        self.ex_layers = nn.Sequential(
+            nn.Dropout(p=dropout_rate),
+            nn.Linear(enclosing_decoder.dim_out, dim_out))   
+        self.enclosing_decoder = enclosing_decoder
+        self.nstyle = enclosing_decoder.nstyle
+
+    def forward(self, z_gauss):
+        x = self.enclosing_decoder(z_gauss)
+        spec = self.ex_layers(x)
+        return spec
+    
+    def get_training_parameters(self):
+        return self.ex_layers.parameters()
 
 class DiscriminatorCNN(nn.Module):
     def __init__(self, hiden_size=64, channels=2, kernel_size=5, dropout_rate=0.2, nstyle=5, noise=0.1):
@@ -674,46 +333,10 @@ class DummyDualAAE(nn.Module):
         x2 = self.decoder(z)
         is_gau = self.discriminator(z, 0.3)
         return x2, is_gau
-
-
-class ModalityWarpAndScaleMapping(nn.Module):
-    
-    def __init__(self, ngrid=256, seg_size=32):
-        super(ModalityWarpAndScaleMapping, self).__init__()
-        self.grid_indices = nn.Parameter(torch.arange(ngrid, dtype=torch.float32)[:, None], requires_grad=False)
-        self.seg_source_indices = self.grid_indices.to(torch.long)[:, 0] - seg_size // 2
-        self.seg_source_indices = torch.clamp(self.seg_source_indices, min=0, max=ngrid-seg_size)
-        self.seg_source_indices = self.seg_source_indices[:, None] + torch.arange(seg_size, dtype=torch.long)[None, :]
-        self.warp_indexer = nn.Sequential(
-            nn.Linear(in_features=1, out_features=4),
-            nn.ReLU(),
-            nn.BatchNorm1d(num_features=4, affine=False),
-            nn.Linear(in_features=4, out_features=16),
-            nn.ReLU(),
-            nn.BatchNorm1d(num_features=16, affine=False),
-            nn.Linear(in_features=16, out_features=seg_size),
-            nn.Softmax(dim=-1)
-        )
-        
-        self.k = nn.Parameter(torch.randn(ngrid) * 0.1 + 1.0, requires_grad=True)
-        self.b = nn.Parameter(torch.randn(ngrid) * 0.1, requires_grad=True)
         
     def forward(self, specs_in):
         seg_selector = self.warp_indexer(self.grid_indices)
         specs_warped = (specs_in[:, self.seg_source_indices] * seg_selector[None, ...]).sum(dim=-1)
         specs_ws = specs_warped * self.k + self.b
         return specs_ws
-
-
-class FCEncoderWithWarpScaling(nn.Module):
-    
-    def __init__(self, encoder, warp_scale_model):
-        super(FCEncoderWithWarpScaling, self).__init__()
-        self.encoder = encoder
-        self.warp_scale_model = warp_scale_model
-        
-    def forward(self, x):
-        x = self.warp_scale_model(x)
-        x = self.encoder(x)
-        return x
 

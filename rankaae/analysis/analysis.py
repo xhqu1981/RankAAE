@@ -15,9 +15,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
 
-from rankaae.models.model import FCEncoderWithWarpScaling
-
-
 
 def create_plotly_colormap(n_colors):
     '''
@@ -418,8 +415,6 @@ def evaluate_model(
     
     encoder = model['Encoder']
     decoder = model['Decoder']
-    if "Warp Scale Mapper" in model and model["Warp Scale Mapper"] is not None:
-        encoder = FCEncoderWithWarpScaling(encoder, model["Warp Scale Mapper"])
     encoder.eval()
     
     # Get styles via encoder

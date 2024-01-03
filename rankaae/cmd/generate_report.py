@@ -10,7 +10,6 @@ from scipy.stats import spearmanr
 from sklearn.metrics.pairwise import cosine_similarity
 import rankaae.analysis.analysis as analysis
 import rankaae.analysis.analysis_new as analysis_new
-from rankaae.models.model import FCEncoderWithWarpScaling
 from rankaae.utils.parameter import Parameters
 from rankaae.models.dataloader import AuxSpectraDataset
 
@@ -57,8 +56,6 @@ def plot_report(test_ds, model, config=None, title='report', device = torch.devi
 
     encoder = model['Encoder']
     decoder = model['Decoder']
-    if "Warp Scale Mapper" in model and model["Warp Scale Mapper"] is not None:
-        encoder = FCEncoderWithWarpScaling(encoder, model["Warp Scale Mapper"])
     result = analysis.evaluate_model(test_ds, model, device=device)
     style_correlation = result["Inter-style Corr"]
     

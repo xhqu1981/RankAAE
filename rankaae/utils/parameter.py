@@ -1,10 +1,4 @@
 from rankaae.models.model import (
-    CompactDecoder, 
-    CompactEncoder, 
-    Encoder, 
-    Decoder, 
-    QvecDecoder, 
-    QvecEncoder, 
     FCDecoder,
     FCEncoder,
 )
@@ -12,18 +6,6 @@ import torch_optimizer as ex_optim
 from torch import optim
 
 AE_CLS_DICT = {
-    "normal": {
-        "encoder": Encoder, 
-        "decoder": Decoder
-    },
-    "compact": {
-        "encoder": CompactEncoder, 
-        "decoder": CompactDecoder
-    },
-    "qved": {
-        "encoder": QvecEncoder, 
-        "decoder": QvecDecoder
-    },
     "FC": {
         "encoder": FCEncoder, 
         "decoder": FCDecoder
@@ -35,6 +17,7 @@ OPTIM_DICT = {
     "Adam": optim.Adam, 
     "AdamW": optim.AdamW,
     "NAdam": optim.NAdam,
+    "SGD": optim.SGD,
     "AdaBound": ex_optim.AdaBound, 
     "RAdam": ex_optim.RAdam
 }
