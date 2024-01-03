@@ -400,16 +400,14 @@ class Trainer:
         if self.__dict__.get('lr_ratio_dis', -1) > 0:
             dis_optimizer = opt_cls(
                 [{'params': self.discriminator.parameters()}],
-                lr = self.lr_ratio_dis * self.lr_base,
-                betas = (self.dis_beta * 0.9, self.dis_beta * 0.009 + 0.99))
+                lr = self.lr_ratio_dis * self.lr_base)
         else:
             dis_optimizer = None
 
         if self.__dict__.get('lr_ratio_gen', -1) > 0:
             gen_optimizer = opt_cls(
                 [{'params': self.encoder.get_training_parameters()}],
-                lr = self.lr_ratio_gen * self.lr_base,
-                betas = (self.gen_beta * 0.9, self.gen_beta * 0.009 + 0.99))
+                lr = self.lr_ratio_gen * self.lr_base)
         else:
             gen_optimizer = None
 
@@ -417,8 +415,7 @@ class Trainer:
             adv_optimizer = opt_cls(
                 [{'params': self.discriminator.parameters()},
                  {'params': self.encoder.get_training_parameters()}],
-                lr = self.lr_ratio_adv * self.lr_base,
-                betas = (self.dis_beta * 0.9, self.dis_beta * 0.009 + 0.99))
+                lr = self.lr_ratio_adv * self.lr_base)
         else:
             adv_optimizer = None
 
