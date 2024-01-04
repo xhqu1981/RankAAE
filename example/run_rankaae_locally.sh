@@ -25,11 +25,17 @@ ipython profile create --profile-dir=${work_dir}/ipypar
 ipcontroller --ip="*" --profile-dir=${work_dir}/ipypar &
 sleep 10
 
-for i in `seq 1 $total_engines`
-do
-    export SLURM_LOCALID=$i
-    ipengine --profile-dir=${work_dir}/ipypar --log-to-file &
-done
+if [[ -z "${SLURM_GPUS_ON_NODE}" ]]; then
+    echo "Run on a workstation that is not IC"
+    for i in `seq 1 $total_engines`
+    do
+        export SLURM_LOCALID=$i
+        ipengine --profile-dir=${work_dir}/ipypar --log-to-file &
+        
+    done
+else
+    echo "Run on IC"
+    srun --nodes=${SLURM_NNODES} --ntasks-per-node=${SLURM_GPUS_ON_NODE} ipengine --profile-dir=${work_dir}/ipypar --log-to-file &
 
 wait_ipp_engines -w ${work_dir} -e $total_engines
 echo "Engines seems to have started"
