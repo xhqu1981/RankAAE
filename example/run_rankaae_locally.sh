@@ -31,11 +31,11 @@ if [[ -z "${SLURM_GPUS_ON_NODE}" ]]; then
     do
         export SLURM_LOCALID=$i
         ipengine --profile-dir=${work_dir}/ipypar --log-to-file &
-        
     done
 else
     echo "Run on IC"
     srun --nodes=${SLURM_NNODES} --ntasks-per-node=${SLURM_GPUS_ON_NODE} ipengine --profile-dir=${work_dir}/ipypar --log-to-file &
+fi
 
 wait_ipp_engines -w ${work_dir} -e $total_engines
 echo "Engines seems to have started"
