@@ -437,7 +437,7 @@ class Trainer:
             exscf_optimizer = opt_cls(
                 params = [{'params': self.encoder.get_training_parameters()}],
                 lr = self.lr_ratio_exscf * self.lr_base,
-                weight_decay = 0)
+                wweight_decay = self.weight_decay)
         else:
             exscf_optimizer = None
 
