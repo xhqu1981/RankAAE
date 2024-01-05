@@ -196,12 +196,19 @@ class Trainer:
                 # Init gradients, smoothness loss
                 if epoch < self.epoch_stop_smooth: # turn off smooth loss after 500
                     self.zerograd()
-                    spec_out  = self.decoder(self.encoder(spec_in)) # retain the graph?
+                    spec_out  = self.decoder(self.encoder(spec_in))
                     smooth_loss_train = smoothness_loss(
                         spec_out, 
                         gs_kernel_size=self.gau_kernel_size,
                         device=self.device
                     )
+                    if isinstance(self.encoder, ExEncoder):
+                        spec_out  = self.encoder.ex_layers(spec_in)
+                        smooth_loss_train += smoothness_loss(
+                            spec_out, 
+                            gs_kernel_size=self.gau_kernel_size,
+                            device=self.device
+                        )
                     smooth_loss_train.backward()
                     self.optimizers["smoothness"].step()
 
