@@ -15,34 +15,14 @@ import signal
 import time
 import numpy as np
 
+class RankAAEMPIEngineSetLauncher(ipp.cluster.launcher.MPILauncher, ipp.cluster.launcher.EngineLauncher):
+    @property
+    def program(self):
+        return self.engine_cmd
 
-engine_id = -1
 
 def timeout_handler(signum, frame):
     raise Exception("Training Overtime!")
-
-
-def get_parallel_map_func(work_dir=".", logger=logging.getLogger("Parallel")):
-    
-    c = ipp.Client(
-        connection_info=f"{work_dir}/ipypar/security/ipcontroller-client.json"
-    )
-
-    with c[:].sync_imports():
-        import torch
-        from rankaae.models.trainer import Trainer
-        from rankaae.utils.parameter import Parameters
-        from rankaae.utils.logger import create_logger
-        import os
-        import socket
-        import logging
-        import signal
-        import time
-    logger.info(f"Engine IDs: {c.ids}")
-    c[:].push(dict(run_training=run_training, timeout_handler=timeout_handler),
-              block=True)
-
-    return c.load_balanced_view().map_sync, len(c.ids)
 
 
 def run_training(
@@ -70,11 +50,18 @@ def run_training(
         torch.set_num_threads(1)
     
     ngpus_per_node = torch.cuda.device_count()
-    if "SLURM_LOCALID" in os.environ:
-        local_id = int(os.environ.get("SLURM_LOCALID", 0))
-    else:
+
+    
+    
+    local_id = int(os.environ.get("SLURM_LOCALID", -1))
+    if local_id < 0:
+        local_id = int(os.environ.get("OMPI_COMM_WORLD_LOCAL_RANK", -1))
+    if local_id < 0:
+        logger.info(f"Unable to find local rank ID, set to zero\n")
         local_id = 0
     igpu = local_id % ngpus_per_node if torch.cuda.is_available() else -1
+
+    logger.info(f"Running on {socket.gethostname()} with GPU #{igpu + 1}\n")
     
     start = time.time()
     logger.info(f"Training started for trial {job_number+1}.")
@@ -107,6 +94,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', type=str, required=True,
                         help='Config for training parameter in YAML format')
+    parser.add_argument('-p', '--processes', type=int, required=True,
+                        help='Number of processes')
     parser.add_argument('-w', "--work_dir", type=str, default='.',
                         help="Working directory to write the output files")
     args = parser.parse_args()
@@ -124,23 +113,46 @@ def main():
     logger = create_logger("Main training:", f'{work_dir}/main_process_message.txt', append=True)
     logger.info("START")
 
-    if trials > 1:
-        par_map, nprocesses = get_parallel_map_func(work_dir, logger=logger)
-    else:
-        par_map, nprocesses = map, 1
-    logger.info("Running with {} process(es).".format(nprocesses))
-    
-    start = time.time()
-    result = par_map(
-        run_training,
+    training_func_params = [
         list(range(trials)),
         [work_dir] * trials,
         [train_config] * trials,
         [verbose] * trials,
         [data_file] * trials,
         [timeout] * trials,
-        [logger] * trials
-    )
+        [logger] * trials]
+    
+    if trials > 1:
+        mpi_cmd = train_config.get("mpi_cmd", "srun")
+        ipp.cluster.launcher.MPILauncher.mpi_cmd = [mpi_cmd]
+        ip = socket.gethostbyname(socket.gethostname())
+        with ipp.Cluster(engines=RankAAEMPIEngineSetLauncher, n=args.processes,
+                         controller_ip='*', controller_location=ip, 
+                         profile_dir=f'{work_dir}/ipypar') as rc:
+            with rc[:].sync_imports():
+                import torch
+                from rankaae.models.trainer import Trainer
+                from rankaae.utils.parameter import Parameters
+                from rankaae.utils.logger import create_logger
+                import os
+                import socket
+                import logging
+                import signal
+                import time
+            rc[:].push(dict(run_training=run_training, timeout_handler=timeout_handler),
+                    block=True)
+            par_map = rc.load_balanced_view().map_sync
+            nprocesses = len(rc.ids)
+            logger.info("Running with {} process(es).".format(nprocesses))
+            start = time.time()
+            result = par_map(run_training, *training_func_params)
+    else:
+        par_map, nprocesses = map, 1
+        logger.info("Running with {} process(es).".format(nprocesses))
+        start = time.time()
+        result = par_map(run_training, *training_func_params)
+    
+
 
     time_trials = np.array([r[1] for r in list(result)])
     logger.info(
