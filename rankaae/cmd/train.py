@@ -86,7 +86,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', type=str, required=True,
                         help='Config for training parameter in YAML format')
-    parser.add_argument('-p', '--processes', type=int, required=True,
+    parser.add_argument('-p', '--processes', type=int, default=1,
                         help='Number of processes')
     parser.add_argument('-w', "--work_dir", type=str, default='.',
                         help="Working directory to write the output files")
