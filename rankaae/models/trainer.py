@@ -2,6 +2,7 @@ import shutil
 import os
 import logging
 import itertools
+import socket
 import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
@@ -489,11 +490,11 @@ class Trainer:
         dl_train, dl_val, _ = get_dataloaders(
             csv_fn, p.batch_size, (train_ratio, validation_ratio, test_ratio), n_aux=p.n_aux)
 
-
         # Use GPU if possible
         if torch.cuda.is_available():
             if verbose:
                 logger.info("Use GPU")
+                logger.info(f"Running on {socket.gethostname()} with GPU #{igpu + 1}\n")
             device = torch.device(f"cuda:{igpu}")
             for loader in [dl_train, dl_val]:
                 loader.pin_memory = False

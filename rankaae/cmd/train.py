@@ -26,22 +26,19 @@ def timeout_handler(signum, frame):
 
 
 def run_training(
-    job_number, 
-    work_dir, 
-    train_config,  
-    verbose, 
-    data_file, 
-    timeout_hours=0,
-    logger = logging.getLogger("training")
-):
-
+        job_number, 
+        work_dir, 
+        train_config,  
+        verbose, 
+        data_file, 
+        timeout_hours=0,
+        logger = logging.getLogger("training")):
     work_dir = f'{work_dir}/training/job_{job_number+1}'
     if not os.path.exists(work_dir):
         os.makedirs(work_dir, exist_ok=True)
 
     # Set up a logger to record general training information
     logger = create_logger(f"subtraining_{job_number+1}", os.path.join(work_dir, "messages.txt"))
-    
     # Set up a logger to record losses against epochs during training 
     loss_logger = create_logger(f"losses_{job_number+1}", os.path.join(work_dir, "losses.csv"), simple_fmt=True)
 
@@ -49,19 +46,14 @@ def run_training(
         torch.set_num_interop_threads(1)
         torch.set_num_threads(1)
     
-    ngpus_per_node = torch.cuda.device_count()
-
-    
-    
     local_id = int(os.environ.get("SLURM_LOCALID", -1))
     if local_id < 0:
         local_id = int(os.environ.get("OMPI_COMM_WORLD_LOCAL_RANK", -1))
     if local_id < 0:
         logger.info(f"Unable to find local rank ID, set to zero\n")
         local_id = 0
+    ngpus_per_node = torch.cuda.device_count()
     igpu = local_id % ngpus_per_node if torch.cuda.is_available() else -1
-
-    logger.info(f"Running on {socket.gethostname()} with GPU #{igpu + 1}\n")
     
     start = time.time()
     logger.info(f"Training started for trial {job_number+1}.")
@@ -122,7 +114,8 @@ def main():
         [timeout] * trials,
         [logger] * trials]
     
-    if trials > 1:
+    start = time.time()
+    if args.processes > 1:
         mpi_cmd = train_config.get("mpi_cmd", "srun")
         ipp.cluster.launcher.MPILauncher.mpi_cmd = [mpi_cmd]
         ip = socket.gethostbyname(socket.gethostname())
@@ -140,19 +133,16 @@ def main():
                 import signal
                 import time
             rc[:].push(dict(run_training=run_training, timeout_handler=timeout_handler),
-                    block=True)
+                       block=True)
             par_map = rc.load_balanced_view().map_sync
             nprocesses = len(rc.ids)
-            logger.info("Running with {} process(es).".format(nprocesses))
-            start = time.time()
+            assert nprocesses > 1
+            logger.info("Running with {} processes.".format(nprocesses))
             result = par_map(run_training, *training_func_params)
     else:
         par_map, nprocesses = map, 1
-        logger.info("Running with {} process(es).".format(nprocesses))
-        start = time.time()
+        logger.info("Running with a single process.")
         result = par_map(run_training, *training_func_params)
-    
-
 
     time_trials = np.array([r[1] for r in list(result)])
     logger.info(
@@ -166,7 +156,6 @@ def main():
         f"({(end-start)/trials:.2f} each on average)."
     )
     logger.info("END\n\n")
-
 
 
 if __name__ == '__main__':
