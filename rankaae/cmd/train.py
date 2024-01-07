@@ -7,8 +7,6 @@ from rankaae.models.trainer import Trainer
 from rankaae.utils.parameter import Parameters
 from rankaae.utils.logger import create_logger
 import os
-import yaml
-import socket
 import ipyparallel as ipp
 import logging
 import signal
