@@ -35,7 +35,7 @@ from rankaae.utils.functions import (
 
 class Trainer:
     
-    metric_weights = [1.0, -1.0, -0.01, -1.0, -1.0]
+    metric_weights = [1.0, -1.0, -0.01, -1.0, 1.0]
     gau_kernel_size = 17
 
     def __init__(
@@ -75,7 +75,7 @@ class Trainer:
         bce_lgt_loss = nn.BCEWithLogitsLoss().to(self.device)
 
         # train network
-        best_combined_metric = 10.0 # Initialize a guess for best combined metric.
+        best_combined_metric = -float('inf') # Initialize a guess for best combined metric.
         chkpt_dir = f"{self.work_dir}/checkpoints"
         if not os.path.exists(chkpt_dir):
             os.makedirs(chkpt_dir, exist_ok=True)
@@ -265,7 +265,7 @@ class Trainer:
                 device=self.device
             )
 
-            if self.optimizers["correlation"] is not None:
+            if n_aux > 0:
                 aux_loss_val = kendall_constraint(
                     aux_in_val, 
                     z[:,:n_aux], 
@@ -340,9 +340,12 @@ class Trainer:
                 ]
             ))
             metrics = [min(style_shapiro), recon_loss_val.item(), mutual_info_loss_val.item(), style_coupling,
-                        aux_loss_val.item() if aux_in is not None else 0]
+                       aux_loss_val.item() if n_aux > 0 else 0]
             
-            combined_metric = - (np.array(self.metric_weights) * np.array(metrics)).sum()
+            combined_metric = (np.array(self.metric_weights) * np.array(metrics)).sum()
+            if isinstance(self.encoder, ExEncoder):
+                combined_metric = aux_loss_val
+
             if combined_metric > best_combined_metric:
                 best_combined_metric = combined_metric
                 best_chpt_file = f"{chkpt_dir}/epoch_{epoch:06d}_loss_{combined_metric:07.6g}.pt"
