@@ -99,7 +99,6 @@ def run_training(
 
 
 def main():
-    
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', type=str, required=True,
                         help='Config for training parameter in YAML format')
@@ -139,7 +138,7 @@ def main():
         with ipp.Cluster(engines=RankAAEMPIEngineSetLauncher, n=args.processes,
                          controller_ip='*', controller_location=ip, 
                          profile_dir=f'{work_dir}/ipypar') as rc:
-            time, par_map = get_parallel_map_func(rc)
+            par_map = get_parallel_map_func(rc)
             nprocesses = len(rc.ids)
             assert nprocesses > 1
             logger.info("Running with {} processes.".format(nprocesses))
