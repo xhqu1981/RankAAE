@@ -34,7 +34,7 @@ class KendallConstraint(TrainingLossGeneral):
         pass
       
     
-def kendall_constraint(descriptors, styles, force_balance=False, device=None):
+def kendall_constraint(descriptors, styles, force_balance=False, device=None, validation_only):
     """
     Implement kendall_constraint. It runs on GPU.
     Kendall Rank Correlation Coefficeint:
@@ -63,6 +63,9 @@ def kendall_constraint(descriptors, styles, force_balance=False, device=None):
     aux_target = torch.sign(descriptors[:, np.newaxis, :] - descriptors[np.newaxis, :, :])
     assert len(styles.size()) == 2
     aux_pred = styles[:, np.newaxis, :] - styles[np.newaxis, :, :]
+    if validation_only:
+        force_balance = False
+        aux_pred = torch.sign(aux_pred)
     aux_len = aux_pred.size()[0]
     product = aux_pred * aux_target
     if force_balance:

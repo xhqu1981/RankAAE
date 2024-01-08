@@ -267,7 +267,8 @@ class Trainer:
                     aux_in_val, 
                     z[:,:n_aux], 
                     force_balance=False,
-                    device=self.device
+                    device=self.device,
+                    validation_only=True
                 )
             else:
                 aux_loss_val = torch.tensor(0.0)
