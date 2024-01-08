@@ -231,10 +231,7 @@ class Trainer:
                     self.zerograd()
                     spec_out  = self.decoder.enclosing_decoder(self.encoder(spec_in)).detach()
                     ex_spec_in = self.encoder.ex_layers(spec_in)
-                    exscf_loss_train = recon_loss(
-                        spec_out, ex_spec_in,
-                        scale=self.use_flex_spec_target,
-                        device=self.device)
+                    exscf_loss_train = mse_loss(ex_spec_in, spec_out)
                     exscf_loss_train.backward()
                     self.optimizers["exscf"].step()
                   
