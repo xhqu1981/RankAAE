@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import argparse
+import socket
 
 import torch
 from rankaae.models.trainer import Trainer
@@ -18,6 +19,22 @@ class RankAAEMPIEngineSetLauncher(ipp.cluster.launcher.MPILauncher, ipp.cluster.
     def program(self):
         return self.engine_cmd
 
+def get_parallel_map_func(rc):
+    with rc[:].sync_imports():
+        import torch
+        from rankaae.models.trainer import Trainer
+        from rankaae.utils.parameter import Parameters
+        from rankaae.utils.logger import create_logger
+        import os
+        import socket
+        import logging
+        import signal
+        import time
+    rc[:].push(dict(run_training=run_training, 
+                    timeout_handler=timeout_handler),
+                    block=True)
+    par_map = rc.load_balanced_view().map_sync
+    return par_map
 
 def timeout_handler(signum, frame):
     raise Exception("Training Overtime!")
@@ -120,27 +137,14 @@ def main():
         with ipp.Cluster(engines=RankAAEMPIEngineSetLauncher, n=args.processes,
                          controller_ip='*', controller_location=ip, 
                          profile_dir=f'{work_dir}/ipypar') as rc:
-            with rc[:].sync_imports():
-                import torch
-                from rankaae.models.trainer import Trainer
-                from rankaae.utils.parameter import Parameters
-                from rankaae.utils.logger import create_logger
-                import os
-                import socket
-                import logging
-                import signal
-                import time
-            rc[:].push(dict(run_training=run_training, timeout_handler=timeout_handler),
-                       block=True)
-            par_map = rc.load_balanced_view().map_sync
+            time, par_map = get_parallel_map_func(rc)
             nprocesses = len(rc.ids)
             assert nprocesses > 1
             logger.info("Running with {} processes.".format(nprocesses))
             result = par_map(run_training, *training_func_params)
     else:
-        par_map, nprocesses = map, 1
         logger.info("Running with a single process.")
-        result = par_map(run_training, *training_func_params)
+        result = map(run_training, *training_func_params)
 
     time_trials = np.array([r[1] for r in list(result)])
     logger.info(
