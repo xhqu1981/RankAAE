@@ -34,7 +34,7 @@ class KendallConstraint(TrainingLossGeneral):
         pass
       
     
-def kendall_constraint(descriptors, styles, force_balance=False, device=None, validation_only):
+def kendall_constraint(descriptors, styles, force_balance=False, device=None, validation_only=False):
     """
     Implement kendall_constraint. It runs on GPU.
     Kendall Rank Correlation Coefficeint:
