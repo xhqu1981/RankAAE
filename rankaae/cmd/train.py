@@ -2,19 +2,22 @@
 
 import argparse
 import socket
-
-import torch
-from rankaae.models.trainer import Trainer
-from rankaae.utils.parameter import Parameters
-from rankaae.utils.logger import create_logger
-import os
-import ipyparallel as ipp
 import logging
 import signal
 import time
-import numpy as np
 
-class RankAAEMPIEngineSetLauncher(ipp.cluster.launcher.MPILauncher, ipp.cluster.launcher.EngineLauncher):
+import os
+
+import torch
+import numpy as np
+import ipyparallel as ipp
+from rankaae.models.trainer import Trainer
+from rankaae.utils.parameter import Parameters
+from rankaae.utils.logger import create_logger
+
+
+class RankAAEMPIEngineSetLauncher(ipp.cluster.launcher.MPILauncher, 
+                                  ipp.cluster.launcher.EngineLauncher):
     @property
     def program(self):
         return self.engine_cmd
