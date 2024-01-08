@@ -269,7 +269,7 @@ class Trainer:
                 aux_loss_val = kendall_constraint(
                     aux_in_val, 
                     z[:,:n_aux], 
-                    force_balance=self.kendall_force_balance,
+                    force_balance=False,
                     device=self.device
                 )
             else:
