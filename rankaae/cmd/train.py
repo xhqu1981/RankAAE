@@ -134,6 +134,8 @@ def main():
     if args.processes > 1:
         mpi_cmd = train_config.get("mpi_cmd", "srun")
         ipp.cluster.launcher.MPILauncher.mpi_cmd = [mpi_cmd]
+        ipp.cluster.launcher.MPILauncher.mpi_args = [
+            "--gpus-per-node", torch.cuda.device_count()]
         ip = socket.gethostbyname(socket.gethostname())
         with ipp.Cluster(engines=RankAAEMPIEngineSetLauncher, n=args.processes,
                          controller_ip='*', controller_location=ip, 
