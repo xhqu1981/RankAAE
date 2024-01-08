@@ -136,7 +136,8 @@ def main():
         ipp.cluster.launcher.MPILauncher.mpi_cmd = [mpi_cmd]
         if mpi_cmd == "srun":
             ipp.cluster.launcher.MPILauncher.mpi_args = [
-                "--gpus-per-node", str(torch.cuda.device_count())]
+                "--gpus-per-node", str(torch.cuda.device_count()),
+                "-m", "cyclic"]
         ip = socket.gethostbyname(socket.gethostname())
         with ipp.Cluster(engines=RankAAEMPIEngineSetLauncher, n=args.processes,
                          controller_ip='*', controller_location=ip, 
