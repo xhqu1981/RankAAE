@@ -319,7 +319,7 @@ class Trainer:
 
             if self.optimizers["exscf"] is not None:
                 ex_spec_out_val  = self.decoder.enclosing_decoder(self.encoder(spec_in_val))
-                ex_spec_in_val = self.encoder.ex_layers(spec_in)
+                ex_spec_in_val = self.encoder.ex_layers(spec_in_val)
                 exscf_loss_val = mse_loss(ex_spec_in_val, ex_spec_out_val)
             else:
                 exscf_loss_val = torch.tensor(0.0)
