@@ -259,7 +259,7 @@ class LossCurvePlotter(MSONable):
 
     def plot_loss_curve(self, file_path):
         self._load_losses(file_path)
-        fig, axs = plt.subplots(6, 1, figsize=(6,15), dpi=150)
+        fig, axs = plt.subplots(len(self.loss_dict), 1, figsize=(6,15), dpi=150)
         i = 0
         for name, loss in self.loss_dict.items():
             if name == "Epochs": continue
