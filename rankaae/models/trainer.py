@@ -73,6 +73,10 @@ class Trainer:
         # loss functions
         mse_loss = nn.MSELoss().to(self.device)
         bce_lgt_loss = nn.BCEWithLogitsLoss().to(self.device)
+        exscf_loss = {
+            'MSE': nn.MSELoss().to(self.device),
+            'CS': nn.CosineSimilarity().to(self.device),
+        }[self.__dict__.get('exscf_loss', 'MSE')]
 
         # train network
         best_combined_metric = -float('inf') # Initialize a guess for best combined metric.
@@ -233,7 +237,7 @@ class Trainer:
                     self.zerograd()
                     spec_out  = self.decoder.enclosing_decoder(self.encoder(spec_in)).detach()
                     ex_spec_in = self.encoder.ex_layers(spec_in)
-                    exscf_loss_train = mse_loss(ex_spec_in, spec_out)
+                    exscf_loss_train = exscf_loss(ex_spec_in, spec_out)
                     exscf_loss_train.backward()
                     self.optimizers["exscf"].step()
                 else:
@@ -320,7 +324,7 @@ class Trainer:
             if self.optimizers["exscf"] is not None:
                 ex_spec_out_val  = self.decoder.enclosing_decoder(self.encoder(spec_in_val))
                 ex_spec_in_val = self.encoder.ex_layers(spec_in_val)
-                exscf_loss_val = mse_loss(ex_spec_in_val, ex_spec_out_val)
+                exscf_loss_val = exscf_loss(ex_spec_in_val, ex_spec_out_val)
             else:
                 exscf_loss_val = torch.tensor(0.0)
                 
