@@ -327,7 +327,7 @@ class Trainer:
             # Write losses to a file
             if epoch % 10 == 0:
                 self.loss_logger.info(
-                    f"{epoch:d},\t",
+                    f"{epoch:d},\t"
                     f"{l1_loss.item():.6f},\t{l1_loss.item():.6f},\t"
                     f"{exscf_loss_train.item():.6f},\t{exscf_loss_val.item():.6f},\t"
                     f"{dis_loss_train.item():.6f},\t{dis_loss_val.item():.6f},\t"
