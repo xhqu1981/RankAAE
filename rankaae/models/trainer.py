@@ -84,7 +84,7 @@ class Trainer:
         
         # Record first line of loss values
         self.loss_logger.info( 
-                "Epoch, Train_L1, Val_L1, Train_ExSCF, Val_ExSCF, Train_D,Val_D,Train_G,Val_G,Train_Aux,Val_Aux,Train_Recon,"
+                "Epoch,Train_L1,Val_L1,Train_ExSCF,Val_ExSCF,Train_D,Val_D,Train_G,Val_G,Train_Aux,Val_Aux,Train_Recon,"
                 "Val_Recon,Train_Smooth,Val_Smooth,Train_Mutual_Info,Val_Mutual_Info"
         )
         
