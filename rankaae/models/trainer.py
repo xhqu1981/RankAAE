@@ -84,7 +84,7 @@ class Trainer:
         
         # Record first line of loss values
         self.loss_logger.info( 
-                "Epoch,Train_D,Val_D,Train_G,Val_G,Train_Aux,Val_Aux,Train_Recon,"
+                "Epoch, Train_L1, Val_L1, Train_ExSCF, Val_ExSCF, Train_D,Val_D,Train_G,Val_G,Train_Aux,Val_Aux,Train_Recon,"
                 "Val_Recon,Train_Smooth,Val_Smooth,Train_Mutual_Info,Val_Mutual_Info"
         )
         
@@ -226,6 +226,8 @@ class Trainer:
                                          self.decoder.get_training_parameters())])) / n_params
                     l1_loss.backward()
                     self.optimizers["l1_regularization"].step()
+                else:
+                    l1_loss = torch.tensor(0.0)
 
                 if self.optimizers["exscf"] is not None:
                     self.zerograd()
@@ -234,6 +236,8 @@ class Trainer:
                     exscf_loss_train = mse_loss(ex_spec_in, spec_out)
                     exscf_loss_train.backward()
                     self.optimizers["exscf"].step()
+                else:
+                    exscf_loss_train = torch.tensor(0.0)
                   
                 # Init gradients
                 self.zerograd()
@@ -312,11 +316,20 @@ class Trainer:
                     loss_fn=bce_lgt_loss, 
                     device=self.device
                 )
+
+            if self.optimizers["exscf"] is not None:
+                ex_spec_out_val  = self.decoder.enclosing_decoder(self.encoder(spec_in_val))
+                ex_spec_in_val = self.encoder.ex_layers(spec_in)
+                exscf_loss_val = mse_loss(ex_spec_in_val, ex_spec_out_val)
+            else:
+                exscf_loss_val = torch.tensor(0.0)
                 
             # Write losses to a file
             if epoch % 10 == 0:
                 self.loss_logger.info(
-                    f"{epoch:d},\t"
+                    f"{epoch:d},\t",
+                    f"{l1_loss.item():.6f},\t{l1_loss.item():.6f},\t"
+                    f"{exscf_loss_train.item():.6f},\t{exscf_loss_val.item():.6f},\t"
                     f"{dis_loss_train.item():.6f},\t{dis_loss_val.item():.6f},\t"
                     f"{gen_loss_train.item():.6f},\t{gen_loss_val.item():.6f},\t"
                     f"{aux_loss_train.item():.6f},\t{aux_loss_val.item():.6f},\t"

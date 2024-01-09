@@ -245,7 +245,7 @@ class SpectraVariationEvaluator(Evaluator):
 
 class LossCurvePlotter(MSONable):
     def __init__(self):
-        self.loss_names = ["D", "G", "Aux", "Recon", "Smooth", "Mutual_Info"]
+        self.loss_names = ["L1", "ExSCF", "D", "G", "Aux", "Recon", "Smooth", "Mutual_Info"]
         self.loss_dict = {name: {} for name in self.loss_names}
         self.epochs = None
 
