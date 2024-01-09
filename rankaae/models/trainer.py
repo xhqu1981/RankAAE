@@ -394,7 +394,10 @@ class Trainer:
             lr = self.lr_ratio_Mutual * self.lr_base)
 
         smooth_optimizer = opt_cls(
-            params = [{'params': self.decoder.get_training_parameters()}], 
+            params = [{'params': self.encoder.get_training_parameters()}, 
+                      {'params': self.decoder.get_training_parameters()}] \
+                     if isinstance(self.encoder, ExEncoder) \
+                     else [{'params': self.decoder.get_training_parameters()}],
             lr = self.lr_ratio_Smooth * self.lr_base,
             weight_decay = self.weight_decay)
 
