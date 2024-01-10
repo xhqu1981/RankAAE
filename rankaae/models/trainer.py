@@ -75,7 +75,7 @@ class Trainer:
         bce_lgt_loss = nn.BCEWithLogitsLoss().to(self.device)
         exscf_loss = {
             'MSE': nn.MSELoss().to(self.device),
-            'CS': lambda x, y: (nn.CosineSimilarity().to(self.device)(x, y) + 1.0).mean() \
+            'CS': lambda x, y: (1.0 - nn.CosineSimilarity().to(self.device)(x, y)).mean() \
                 + 0.1 * nn.MSELoss().to(self.device)(x, y),
         }[self.__dict__.get('exscf_loss', 'MSE')]
 
