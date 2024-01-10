@@ -35,7 +35,7 @@ from rankaae.utils.functions import (
 
 class Trainer:
     
-    metric_weights = [1.0, -1.0, -0.01, -1.0, 1.0]
+    metric_weights = [1.0, -1.0, -0.01, -1.0, -1.0]
     gau_kernel_size = 17
 
     def __init__(
@@ -360,7 +360,7 @@ class Trainer:
             
             combined_metric = (np.array(self.metric_weights) * np.array(metrics)).sum()
             if isinstance(self.encoder, ExEncoder):
-                combined_metric = aux_loss_val
+                combined_metric = -aux_loss_val
 
             if combined_metric > best_combined_metric:
                 best_combined_metric = combined_metric
