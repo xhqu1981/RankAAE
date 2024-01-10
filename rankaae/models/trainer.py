@@ -227,8 +227,8 @@ class Trainer:
                                          self.decoder.get_training_parameters())])
                     l1_loss = torch.sum(torch.stack(
                         [torch.sum(torch.abs(p)) for p in 
-                        itertools.chain(self.encoder.get_training_parameters(), 
-                                        self.decoder.get_training_parameters())])) / n_params
+                         itertools.chain(self.encoder.get_training_parameters(), 
+                                         self.decoder.get_training_parameters())])) / n_params
                     l1_loss.backward()
                     self.optimizers["l1_regularization"].step()
                 else:
