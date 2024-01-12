@@ -141,6 +141,7 @@ def main():
         ip = socket.gethostbyname(socket.gethostname())
         with ipp.Cluster(engines=RankAAEMPIEngineSetLauncher, n=args.processes,
                          controller_ip='*', controller_location=ip, 
+                         engine_timeout=300,
                          profile_dir=f'{work_dir}/ipypar') as rc:
             par_map = get_parallel_map_func(rc)
             nprocesses = len(rc.ids)
