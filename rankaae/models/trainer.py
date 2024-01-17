@@ -157,6 +157,9 @@ class Trainer:
                     )
                     gen_loss_train.backward()
                     self.optimizers["generator"].step()
+                else:
+                    dis_loss_train = torch.tensor(0.0)
+                    gen_loss_train = torch.tensor(0.0)
                 
                 if self.optimizers["correlation"] is not None:
                     # Kendall constraint
@@ -301,8 +304,7 @@ class Trainer:
                 device=self.device
             )
 
-            if self.gradient_reversal:
-                assert self.optimizers["adversarial"] is not None
+            if self.gradient_reversal and self.optimizers["adversarial"] is not None:
                 dis_loss_val = adversarial_loss(
                     spec_in_val, z, self.discriminator, alpha_,
                     batch_size=self.batch_size, 
@@ -310,8 +312,7 @@ class Trainer:
                     device=self.device
                 )
                 gen_loss_val = torch.tensor(0.0)
-            else:
-                assert self.optimizers["discriminator"] is not None and self.optimizers["generator"] is not None
+            elif self.optimizers["discriminator"] is not None and self.optimizers["generator"] is not None:
                 dis_loss_val = discriminator_loss(
                     z, self.discriminator, 
                     batch_size=len(z),
@@ -325,6 +326,9 @@ class Trainer:
                     loss_fn=bce_lgt_loss, 
                     device=self.device
                 )
+            else:
+                dis_loss_val = torch.tensor(0.0)
+                gen_loss_val = torch.tensor(0.0)
 
             if self.optimizers["exscf"] is not None:
                 ex_spec_out_val  = self.decoder.enclosing_decoder(self.encoder(spec_in_val))
