@@ -123,8 +123,7 @@ class Trainer:
                 spec_out = self.decoder(styles) # reconstructed spectra
 
                 # Use gradient reversal method or standard GAN structure
-                if self.gradient_reversal:
-                    assert self.optimizers["adversarial"] is not None
+                if self.gradient_reversal and self.optimizers["adversarial"] is not None:
                     self.zerograd()
                     dis_loss_train = adversarial_loss(
                         spec_in, styles, self.discriminator, alpha_,
