@@ -488,7 +488,7 @@ class Trainer:
         
         self.schedulers = {name:
             ReduceLROnPlateau(
-                optimizer, mode="min", factor=self.sch_factor, patience=self.sch_patience, 
+                optimizer, mode="max", factor=self.sch_factor, patience=self.sch_patience, 
                 cooldown=0, threshold=0.01,verbose=self.verbose
             ) 
             for name, optimizer in self.optimizers.items() if optimizer is not None
