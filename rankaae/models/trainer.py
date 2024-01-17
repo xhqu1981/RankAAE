@@ -186,21 +186,25 @@ class Trainer:
                 self.optimizers["reconstruction"].step()
 
                 # Init gradients, mutual information loss
-                self.zerograd()
-                styles = self.encoder(spec_in)
-                mutual_info_loss_train = mutual_info_loss(
-                    spec_in, styles,
-                    encoder=self.encoder, 
-                    decoder=self.decoder,
-                    n_aux=n_aux, 
-                    mse_loss=mse_loss, 
-                    device=self.device
-                )
-                mutual_info_loss_train.backward()
-                self.optimizers["mutual_info"].step()
+                if self.optimizers["mutual_info"] is not None:
+                    self.zerograd()
+                    styles = self.encoder(spec_in)
+                    mutual_info_loss_train = mutual_info_loss(
+                        spec_in, styles,
+                        encoder=self.encoder, 
+                        decoder=self.decoder,
+                        n_aux=n_aux, 
+                        mse_loss=mse_loss, 
+                        device=self.device
+                    )
+                    mutual_info_loss_train.backward()
+                    self.optimizers["mutual_info"].step()
+                else:
+                    mutual_info_loss_train = torch.tensor(0.0)
 
                 # Init gradients, smoothness loss
-                if epoch < self.epoch_stop_smooth: # turn off smooth loss after 500
+                if epoch < self.epoch_stop_smooth and self.optimizers["smoothness"] is not None: 
+                    # turn off smooth loss after 500
                     self.zerograd()
                     spec_out  = self.decoder(self.encoder(spec_in))
                     smooth_loss_train = smoothness_loss(
@@ -217,6 +221,8 @@ class Trainer:
                         )
                     smooth_loss_train.backward()
                     self.optimizers["smoothness"].step()
+                else:
+                    smooth_loss_train = torch.tensor(0.0)
 
                 # L1 regularization to encourage sparseness
                 if self.optimizers["l1_regularization"] is not None:
@@ -406,18 +412,24 @@ class Trainer:
             lr = self.lr_ratio_Reconn * self.lr_base,
             weight_decay = self.weight_decay)
 
-        mutual_info_optimizer = opt_cls(
-            params = [{'params': self.encoder.get_training_parameters()}, 
-                      {'params': self.decoder.get_training_parameters()}],
-            lr = self.lr_ratio_Mutual * self.lr_base)
+        if self.__dict__.get('lr_ratio_Mutual', -1) > 0:
+            mutual_info_optimizer = opt_cls(
+                params = [{'params': self.encoder.get_training_parameters()}, 
+                        {'params': self.decoder.get_training_parameters()}],
+                lr = self.lr_ratio_Mutual * self.lr_base)
+        else:
+            mutual_info_optimizer = None
 
-        smooth_optimizer = opt_cls(
-            params = [{'params': self.encoder.get_training_parameters()}, 
-                      {'params': self.decoder.get_training_parameters()}] \
-                     if isinstance(self.encoder, ExEncoder) \
-                     else [{'params': self.decoder.get_training_parameters()}],
-            lr = self.lr_ratio_Smooth * self.lr_base,
-            weight_decay = self.weight_decay)
+        if self.__dict__.get('lr_ratio_Smooth', -1) > 0:
+            smooth_optimizer = opt_cls(
+                params = [{'params': self.encoder.get_training_parameters()}, 
+                        {'params': self.decoder.get_training_parameters()}] \
+                        if isinstance(self.encoder, ExEncoder) \
+                        else [{'params': self.decoder.get_training_parameters()}],
+                lr = self.lr_ratio_Smooth * self.lr_base,
+                weight_decay = self.weight_decay)
+        else:
+            smooth_optimizer = None
 
         if self.__dict__.get('lr_ratio_Corr', -1) > 0:
             corr_optimizer = opt_cls(
