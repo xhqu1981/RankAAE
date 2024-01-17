@@ -134,8 +134,7 @@ class Trainer:
                     dis_loss_train.backward()
                     self.optimizers["adversarial"].step()
                     gen_loss_train = torch.tensor(0.0)
-                else:
-                    assert self.optimizers["discriminator"] is not None and self.optimizers["generator"] is not None
+                elif self.optimizers["discriminator"] is not None and self.optimizers["generator"] is not None:
                     # Init gradients, discriminator loss
                     self.zerograd()
                     styles = self.encoder(spec_in)
