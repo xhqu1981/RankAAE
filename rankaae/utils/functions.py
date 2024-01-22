@@ -2,7 +2,7 @@ from typing import no_type_check_decorator
 import torch
 from torch import nn
 import numpy as np
-from rankaae.models.model import GaussianSmoothing
+from rankaae.models.model import ExDecoder, ExEncoder, GaussianSmoothing
 
 
 class TrainingLossGeneral():
@@ -187,9 +187,26 @@ def mutual_info_loss(spec_in, styles, encoder, decoder, n_aux, mse_loss=None, de
     nstyle = styles.size()[1]
     z_sample = torch.randn(batch_size, nstyle, requires_grad=False, device=device)
     z_recon = encoder(decoder(z_sample))
-    mutual_info_loss = mse_loss(z_recon[:, :n_aux], z_sample[:, :n_aux])
-    
-    return mutual_info_loss
+    loss = mse_loss(z_recon[:, :n_aux], z_sample[:, :n_aux])
+    return loss
+
+
+def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder, mse_loss=None, device=None):
+    """
+    Sample latent space, reconstruct spectra and feed back to encoder to reconstruct latent space.
+    Return the loss between the sampled and reconstructed latent spacc.
+    """
+
+    if device is None:
+        device = torch.device('cpu')
+    if mse_loss is None:
+        mse_loss = nn.MSELoss().to(device)
+
+    z_sample = torch.randn(batch_size, n_styles, requires_grad=False, device=device)
+    innner_spec_sample = decoder.enclosing_decoder(z_sample).detach()
+    innner_spec_reconn = encoder.ex_layers(decoder.ex_layers(innner_spec_sample))
+    loss = mse_loss(innner_spec_reconn, innner_spec_sample)
+    return loss
 
 def smoothness_loss(spec_out, gs_kernel_size, mse_loss=None, device=None):
     """

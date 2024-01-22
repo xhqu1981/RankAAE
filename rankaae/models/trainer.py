@@ -29,6 +29,7 @@ from rankaae.utils.functions import (
     discriminator_loss,
     generator_loss,
     adversarial_loss,
+    exscf_loss,
     alpha
 )
 
@@ -73,11 +74,6 @@ class Trainer:
         # loss functions
         mse_loss = nn.MSELoss().to(self.device)
         bce_lgt_loss = nn.BCEWithLogitsLoss().to(self.device)
-        exscf_loss = {
-            'MSE': nn.MSELoss().to(self.device),
-            'CS': lambda x, y: (1.0 - nn.CosineSimilarity().to(self.device)(x, y)).mean() \
-                + 0.1 * nn.MSELoss().to(self.device)(x, y),
-        }[self.__dict__.get('exscf_loss', 'MSE')]
 
         # train network
         best_combined_metric = -float('inf') # Initialize a guess for best combined metric.
@@ -243,9 +239,9 @@ class Trainer:
 
                 if self.optimizers["exscf"] is not None:
                     self.zerograd()
-                    spec_out  = self.decoder.enclosing_decoder(self.encoder(spec_in)).detach()
-                    ex_spec_in = self.encoder.ex_layers(spec_in)
-                    exscf_loss_train = exscf_loss(ex_spec_in, spec_out)
+                    exscf_loss_train = exscf_loss(
+                        self.batch_size, self.nstyle, self.encoder, self.decoder,
+                        mse_loss=mse_loss, device=self.device)
                     exscf_loss_train.backward()
                     self.optimizers["exscf"].step()
                 else:
@@ -331,9 +327,9 @@ class Trainer:
                 gen_loss_val = torch.tensor(0.0)
 
             if self.optimizers["exscf"] is not None:
-                ex_spec_out_val  = self.decoder.enclosing_decoder(self.encoder(spec_in_val))
-                ex_spec_in_val = self.encoder.ex_layers(spec_in_val)
-                exscf_loss_val = exscf_loss(ex_spec_in_val, ex_spec_out_val)
+                exscf_loss_val = exscf_loss(
+                    self.batch_size, self.nstyle, self.encoder, self.decoder,
+                    mse_loss=mse_loss, device=self.device)
             else:
                 exscf_loss_val = torch.tensor(0.0)
                 
@@ -417,7 +413,7 @@ class Trainer:
         if self.__dict__.get('lr_ratio_Mutual', -1) > 0:
             mutual_info_optimizer = opt_cls(
                 params = [{'params': self.encoder.get_training_parameters()}, 
-                        {'params': self.decoder.get_training_parameters()}],
+                          {'params': self.decoder.get_training_parameters()}],
                 lr = self.lr_ratio_Mutual * self.lr_base)
         else:
             mutual_info_optimizer = None
@@ -425,9 +421,9 @@ class Trainer:
         if self.__dict__.get('lr_ratio_Smooth', -1) > 0:
             smooth_optimizer = opt_cls(
                 params = [{'params': self.encoder.get_training_parameters()}, 
-                        {'params': self.decoder.get_training_parameters()}] \
-                        if isinstance(self.encoder, ExEncoder) \
-                        else [{'params': self.decoder.get_training_parameters()}],
+                          {'params': self.decoder.get_training_parameters()}] \
+                          if isinstance(self.encoder, ExEncoder) \
+                          else [{'params': self.decoder.get_training_parameters()}],
                 lr = self.lr_ratio_Smooth * self.lr_base,
                 weight_decay = self.weight_decay)
         else:
@@ -479,7 +475,8 @@ class Trainer:
             assert isinstance(self.encoder, ExEncoder)
             assert isinstance(self.decoder, ExDecoder)
             exscf_optimizer = opt_cls(
-                params = [{'params': self.encoder.get_training_parameters()}],
+                params = [{'params': self.encoder.get_training_parameters()},
+                          {'params': self.decoder.get_training_parameters()}],
                 lr = self.lr_ratio_exscf * self.lr_base,
                 weight_decay = self.weight_decay)
         else:
