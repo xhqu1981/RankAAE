@@ -206,7 +206,7 @@ def smoothness_loss(spec_out, gs_kernel_size, mse_loss=None, device=None):
     )
     padding4smooth = nn.ReplicationPad1d(padding=(gs_kernel_size - 1)//2).to(device)
     spec_out_padded = padding4smooth(spec_out.unsqueeze(dim=1))
-    spec_smoothed = gaussian_smoothing(spec_out_padded).squeeze(dim=1)
+    spec_smoothed = gaussian_smoothing(spec_out_padded).squeeze(dim=1).detach()
     smooth_loss_train = mse_loss(spec_out, spec_smoothed)
 
     return smooth_loss_train
