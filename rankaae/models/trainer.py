@@ -541,8 +541,8 @@ class Trainer:
             prev_fn = os.path.join(p.initial_guess_dir, *work_dir.split('/')[-2:], 'final.pt')
             logger.info(f"Reading model initial guess from {prev_fn}")
             mt = torch.load(prev_fn, map_location=device)
-            encoder = ExEncoder(p.dim_in, p.dropout_rate, enclosing_encoder=mt['Encoder'])
-            decoder = ExDecoder(p.dim_out, p.dropout_rate, enclosing_decoder=mt['Decoder'])
+            encoder = ExEncoder(p.dim_in, enclosing_encoder=mt['Encoder'])
+            decoder = ExDecoder(p.dim_out, enclosing_decoder=mt['Decoder'])
             discriminator = mt['Style Discriminator']
         else:
             # Generate encoder, decoder and discriminator
