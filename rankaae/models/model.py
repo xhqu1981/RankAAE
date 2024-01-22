@@ -9,8 +9,9 @@ import torch.nn.functional as F
 class Swish(nn.Module):
     def __init__(self, num_parameters, init=1.0):
         super(Swish, self).__init__()
-        self.beta = nn.Parameter(torch.full(
-            num_parameters, fill_value=init, dtype=torch.float32), requires_grad=True)
+        self.beta = nn.Parameter(
+            torch.full((num_parameters,), fill_value=init, dtype=torch.float32), 
+            requires_grad=True)
     
     def forward(self, x):
         new_shape = [1, self.beta.size(0)] + [1] * len(x.size())
