@@ -193,11 +193,9 @@ class FCDecoder(nn.Module):
 class ExEncoder(nn.Module):
     def __init__(self,
                  dim_in: int,
-                 dropout_rate: float,
                  enclosing_encoder: FCEncoder):
         super(ExEncoder, self).__init__()
         self.ex_layers = nn.Sequential(
-            nn.Dropout(p=dropout_rate),
             nn.Linear(dim_in, enclosing_encoder.dim_in))
         self.enclosing_encoder = enclosing_encoder
 
@@ -213,11 +211,9 @@ class ExEncoder(nn.Module):
 class ExDecoder(nn.Module):
     def __init__(self,
                  dim_out: int,
-                 dropout_rate: float,
                  enclosing_decoder: FCDecoder):
         super(ExDecoder, self).__init__()
         self.ex_layers = nn.Sequential(
-            nn.Dropout(p=dropout_rate),
             nn.Linear(enclosing_decoder.dim_out, dim_out))   
         self.enclosing_decoder = enclosing_decoder
         self.nstyle = enclosing_decoder.nstyle
