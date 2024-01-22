@@ -14,7 +14,7 @@ class Swish(nn.Module):
             requires_grad=True)
     
     def forward(self, x):
-        new_shape = [1, self.beta.size(0)] + [1] * len(x.size())
+        new_shape = [1, self.beta.size(0)] + [1] * (len(x.size()) - 2)
         ex_beta = self.beta.reshape(new_shape)
         x = x * F.sigmoid(ex_beta * x)
         return x
