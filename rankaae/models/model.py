@@ -210,10 +210,21 @@ class FCDecoder(nn.Module):
 class ExEncoder(nn.Module):
     def __init__(self,
                  dim_in: int,
-                 enclosing_encoder: FCEncoder):
+                 enclosing_encoder: FCEncoder,
+                 dropout_rate=0.2,
+                 n_exlayers=1):
         super(ExEncoder, self).__init__()
-        self.ex_layers = nn.Sequential(
-            nn.Linear(dim_in, enclosing_encoder.dim_in))
+        inner_dim = enclosing_encoder.dim_in
+        ex_layers = [nn.Linear(dim_in, inner_dim)]
+        for _ in range(n_exlayers-1):
+            ex_layers.extend([
+                Swish(num_parameters=inner_dim, init=1.0),
+                nn.BatchNorm1d(inner_dim, affine=False),
+                nn.Dropout(p=dropout_rate),
+                nn.Linear(inner_dim, inner_dim)])
+        if n_exlayers > 1:
+            ex_layers.append(Swish(num_parameters=inner_dim, init=1.0))
+        self.ex_layers = nn.Sequential(*ex_layers)
         self.enclosing_encoder = enclosing_encoder
 
     def forward(self, spec):
@@ -228,10 +239,22 @@ class ExEncoder(nn.Module):
 class ExDecoder(nn.Module):
     def __init__(self,
                  dim_out: int,
-                 enclosing_decoder: FCDecoder):
+                 enclosing_decoder: FCDecoder,
+                 dropout_rate=0.2,
+                 n_exlayers=1):
         super(ExDecoder, self).__init__()
-        self.ex_layers = nn.Sequential(
-            nn.Linear(enclosing_decoder.dim_out, dim_out))   
+        inner_dim = enclosing_decoder.dim_out
+        ex_layers = []
+        for _ in range(n_exlayers-1):
+            ex_layers.extend([
+                nn.BatchNorm1d(inner_dim, affine=False),
+                nn.Dropout(p=dropout_rate),
+                nn.Linear(inner_dim, inner_dim),
+                Swish(num_parameters=inner_dim, init=1.0)])
+        ex_layers.append(nn.Linear(inner_dim, dim_out))
+        if n_exlayers > 1:
+            ex_layers.append(Swish(num_parameters=dim_out, init=1.0))
+        self.ex_layers = nn.Sequential(*ex_layers)
         self.enclosing_decoder = enclosing_decoder
         self.nstyle = enclosing_decoder.nstyle
 
