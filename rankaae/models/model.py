@@ -3,6 +3,21 @@ import numbers
 import torch
 from torch import nn
 from torch.autograd import Function
+import torch.nn.functional as F
+
+
+class Swish(nn.Module):
+    def __init__(self, num_parameters, init=1.0):
+        super(Swish, self).__init__()
+        self.beta = nn.Parameter(
+            torch.full((num_parameters,), fill_value=init, dtype=torch.float32), 
+            requires_grad=True)
+    
+    def forward(self, x):
+        new_shape = [1, self.beta.size(0)] + [1] * (len(x.size()) - 2)
+        ex_beta = self.beta.reshape(new_shape)
+        x = x * F.sigmoid(ex_beta * x)
+        return x
 
 
 class GradientReversalLayer(Function):
@@ -96,7 +111,7 @@ class FCEncoder(nn.Module):
         self.dim_in = dim_in
         sequential_layers = [ # first layer
             nn.Linear(dim_in, hidden_size),
-            nn.PReLU(num_parameters=hidden_size, init=0.01),
+            Swish(num_parameters=hidden_size, init=1.0),
             nn.BatchNorm1d(hidden_size, affine=False),
             nn.Dropout(p=dropout_rate),
             
@@ -105,7 +120,7 @@ class FCEncoder(nn.Module):
         for _ in range(n_layers-2):
             sequential_layers.extend(
                 [   nn.Linear(hidden_size, hidden_size),
-                    nn.PReLU(num_parameters=hidden_size, init=0.01),
+                    Swish(num_parameters=hidden_size, init=1.0),
                     nn.BatchNorm1d(hidden_size, affine=False),
                     nn.Dropout(dropout_rate),
                 ]
@@ -147,6 +162,8 @@ class FCDecoder(nn.Module):
 
         if last_layer_activation == 'ReLu':
             ll_act = nn.ReLU()
+        elif last_layer_activation == 'Swish':
+            ll_act = Swish(num_parameters=dim_out)
         elif last_layer_activation == 'Softplus':
             ll_act = nn.Softplus(beta=2)
         else:
@@ -155,7 +172,7 @@ class FCDecoder(nn.Module):
 
         sequential_layers = [ # the first layer.
                 nn.Linear(nstyle, hidden_size),
-                nn.PReLU(num_parameters=hidden_size, init=0.01),
+                Swish(num_parameters=hidden_size, init=1.0),
                 nn.BatchNorm1d(hidden_size, affine=False),
                 nn.Dropout(p=dropout_rate),
         ]
@@ -164,7 +181,7 @@ class FCDecoder(nn.Module):
             sequential_layers.extend( # the n layers in the middle
                 [
                     nn.Linear(hidden_size, hidden_size),
-                    nn.PReLU(num_parameters=hidden_size, init=0.01),
+                    Swish(num_parameters=hidden_size, init=1.0),
                     nn.BatchNorm1d(hidden_size, affine=False),
                     nn.Dropout(p=dropout_rate),
                 ]
@@ -232,34 +249,34 @@ class DiscriminatorCNN(nn.Module):
 
         self.pre = nn.Sequential(
             nn.Linear(nstyle, hiden_size),
-            nn.PReLU(num_parameters=hiden_size, init=0.01)
+            Swish(num_parameters=hiden_size, init=1.0)
         )
 
         self.main = nn.Sequential(
             nn.BatchNorm1d(1, affine=False),
             nn.Conv1d(1, channels, kernel_size=kernel_size, padding=(
                 kernel_size-1)//2, padding_mode='replicate'),
-            nn.PReLU(num_parameters=channels, init=0.01),
+            Swish(num_parameters=channels, init=1.0),
 
             nn.BatchNorm1d(channels, affine=False),
             nn.Conv1d(channels, channels, kernel_size=kernel_size,
                       padding=(kernel_size-1)//2, padding_mode='replicate'),
-            nn.PReLU(num_parameters=channels, init=0.01),
+            Swish(num_parameters=channels, init=1.0),
 
             nn.BatchNorm1d(channels, affine=False),
             nn.Conv1d(channels, channels, kernel_size=kernel_size,
                       padding=(kernel_size-1)//2, padding_mode='replicate'),
-            nn.PReLU(num_parameters=channels, init=0.01),
+            Swish(num_parameters=channels, init=1.0),
 
             nn.BatchNorm1d(channels, affine=False),
             nn.Conv1d(channels, channels, kernel_size=kernel_size, padding=(kernel_size-1)//2,
                       padding_mode='replicate'),
-            nn.PReLU(num_parameters=channels, init=0.01),
+            Swish(num_parameters=channels, init=1.0),
 
             nn.BatchNorm1d(channels, affine=False),
             nn.Conv1d(channels, 1, kernel_size=kernel_size, padding=(
                 kernel_size-1)//2, padding_mode='replicate'),
-            nn.PReLU(num_parameters=1, init=0.01)
+            Swish(num_parameters=1, init=1.0)
         )
 
         self.post = nn.Sequential(
@@ -289,14 +306,14 @@ class DiscriminatorFC(nn.Module):
         
         sequential_layers = [
             nn.Linear(nstyle, hiden_size),
-            nn.PReLU(num_parameters=hiden_size, init=0.01),
+            Swish(num_parameters=hiden_size, init=1.0),
             nn.Dropout(p=dropout_rate),
         ]
         for _ in range(layers-2):
             sequential_layers.extend(
                 [
                     nn.Linear(hiden_size, hiden_size),
-                    nn.PReLU(num_parameters=hiden_size, init=0.01),
+                    Swish(num_parameters=hiden_size, init=1.0),
                     nn.Dropout(p=dropout_rate),
                 ]
             )
