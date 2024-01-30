@@ -218,8 +218,9 @@ class ExEncoder(nn.Module):
         super(ExEncoder, self).__init__()
         inner_dim = enclosing_encoder.dim_in
         self.scale_factor = inner_dim / dim_in
-        positions = torch.arange(inner_dim, dtype=torch.float32, 
-                                 requires_grad=False) / inner_dim
+        positions = (torch.arange(inner_dim, dtype=torch.float32, 
+                                  requires_grad=False) / inner_dim
+                    ) * math.pi
         assert n_channels % 2 == 1
         n_freq = (n_channels - 1) // 2
         pe = torch.stack([
@@ -264,8 +265,9 @@ class ExDecoder(nn.Module):
                  last_layer_use_activation=False):
         super(ExDecoder, self).__init__()
         self.scale_factor = dim_out / enclosing_decoder.dim_out
-        positions = torch.arange(dim_out, dtype=torch.float32, 
-                                 requires_grad=False) / dim_out
+        positions = (torch.arange(dim_out, dtype=torch.float32, 
+                                  requires_grad=False) / dim_out
+                    ) * math.pi
         assert n_channels % 2 == 1
         n_freq = (n_channels - 1) // 2
         pe = torch.stack([
