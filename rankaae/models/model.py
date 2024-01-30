@@ -231,7 +231,8 @@ class ExDecoder(nn.Module):
                  enclosing_decoder: FCDecoder,
                  kernel_size=13,
                  n_exlayers=1,
-                 n_channels=13):
+                 n_channels=13,
+                 last_layer_use_activation=False):
         super(ExDecoder, self).__init__()
         self.scale_factor = dim_out / enclosing_decoder.dim_out
         positions = torch.arange(dim_out, dtype=torch.float32, 
@@ -249,7 +250,9 @@ class ExDecoder(nn.Module):
                 nn.BatchNorm1d(n_channels, affine=True),
                 Swish(num_parameters=n_channels, init=1.0)])
         ex_layers.append(nn.Conv1d(n_channels, n_channels, kernel_size, padding='same', bias=True))
-        self.ex_layers = nn.Sequential(ex_layers)   
+        if last_layer_use_activation:
+            ex_layers.append(nn.Softplus(beta=2))
+        self.ex_layers = nn.Sequential(*ex_layers)   
         
         self.enclosing_decoder = enclosing_decoder
         self.nstyle = enclosing_decoder.nstyle
