@@ -241,16 +241,20 @@ class ExEncoder(nn.Module):
         self.enclosing_encoder = enclosing_encoder
 
     def forward(self, spec):
-        inner_spec = nn.functional.interpolate(spec[:, None, :], 
-            scale_factor=self.scale_factor, mode='linear', align_corners=True)
-        inner_spec = torch.cat([
-            inner_spec, 
-            self.position_embedding.repeat([inner_spec.size(0), 1, 1])], 
-            dim=1)
-        inner_spec = self.ex_layers(inner_spec)
-        inner_spec = inner_spec.squeeze(dim=1)
-        z_gauss = self.enclosing_encoder(inner_spec)
+        spec = self.ex_convert(spec)
+        z_gauss = self.enclosing_encoder(spec)
         return z_gauss
+
+    def ex_convert(self, spec):
+        spec = nn.functional.interpolate(spec[:, None, :], 
+            scale_factor=self.scale_factor, mode='linear', align_corners=True)
+        spec = torch.cat([
+            spec, 
+            self.position_embedding.repeat([spec.size(0), 1, 1])], 
+            dim=1)
+        spec = self.ex_layers(spec)
+        spec = spec.squeeze(dim=1)
+        return spec
     
     def get_training_parameters(self):
         return self.ex_layers.parameters()
@@ -290,14 +294,18 @@ class ExDecoder(nn.Module):
         self.nstyle = enclosing_decoder.nstyle
 
     def forward(self, z_gauss):
-        inner_spec = self.enclosing_decoder(z_gauss)
-        inner_spec = nn.functional.interpolate(inner_spec[:, None, :], 
+        spec = self.enclosing_decoder(z_gauss)
+        spec = self.ex_convert(spec)
+        return spec
+
+    def ex_convert(self, spec):
+        spec = nn.functional.interpolate(spec[:, None, :], 
             scale_factor=self.scale_factor, mode='linear', align_corners=True)
-        inner_spec = torch.cat([
-            inner_spec, 
-            self.position_embedding.repeat([inner_spec.size(0), 1, 1])], 
+        spec = torch.cat([
+            spec, 
+            self.position_embedding.repeat([spec.size(0), 1, 1])], 
             dim=1)
-        spec = self.ex_layers(inner_spec)
+        spec = self.ex_layers(spec)
         spec = spec.squeeze(dim=1)
         return spec
     

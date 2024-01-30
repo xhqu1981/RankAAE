@@ -210,7 +210,7 @@ class Trainer:
                         device=self.device
                     )
                     if isinstance(self.encoder, ExEncoder):
-                        spec_out  = self.encoder.ex_layers(spec_in_no_noise)
+                        spec_out  = self.encoder.ex_convert(spec_in_no_noise)
                         smooth_loss_train += smoothness_loss(
                             spec_out, 
                             gs_kernel_size=self.gau_kernel_size,

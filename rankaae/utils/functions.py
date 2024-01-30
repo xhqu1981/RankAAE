@@ -204,7 +204,7 @@ def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder, mse
 
     z_sample = torch.randn(batch_size, n_styles, requires_grad=False, device=device)
     innner_spec_sample = decoder.enclosing_decoder(z_sample).detach()
-    innner_spec_reconn = encoder.ex_layers(decoder.ex_layers(innner_spec_sample))
+    innner_spec_reconn = encoder.ex_convert(decoder.ex_convert(innner_spec_sample))
     loss = mse_loss(innner_spec_reconn, innner_spec_sample)
     return loss
 
