@@ -226,7 +226,7 @@ class ExEncoder(nn.Module):
         pe = torch.stack([
             torch.sin(positions * freq) for freq in range(1, n_freq+1)] + [
             torch.cos(positions * freq) for freq in range(1, n_freq+1)], dim=0)
-        self.position_embedding = self.register_buffer(pe[None, ...])
+        self.register_buffer("position_embedding", pe[None, ...])
         ex_layers = []
         for _ in range(n_exlayers - 1):
             ex_layers.extend([
@@ -273,7 +273,7 @@ class ExDecoder(nn.Module):
         pe = torch.stack([
             torch.sin(positions * freq) for freq in range(1, n_freq+1)] + [
             torch.cos(positions * freq) for freq in range(1, n_freq+1)], dim=0)
-        self.position_embedding = self.register_buffer(pe[None, ...])
+        self.position_embedding = self.register_buffer("position_embedding", pe[None, ...])
         ex_layers = []
         for _ in range(n_exlayers - 1):
             ex_layers.extend([
