@@ -94,10 +94,6 @@ class Trainer:
             self.encoder.train()
             self.decoder.train()
             self.discriminator.train()
-            if isinstance(self.encoder, ExEncoder):
-                self.encoder.enclosing_encoder.eval()
-            if isinstance(self.decoder, ExDecoder):
-                self.decoder.enclosing_decoder.eval()
 
             if self.gradient_reversal:
                 alpha_ = alpha(epoch/self.max_epoch, self.alpha_flat_step, self.alpha_limit)
