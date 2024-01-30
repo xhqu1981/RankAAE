@@ -210,15 +210,44 @@ class FCDecoder(nn.Module):
 class ExEncoder(nn.Module):
     def __init__(self,
                  dim_in: int,
-                 enclosing_encoder: FCEncoder):
+                 enclosing_encoder: FCEncoder,
+                 kernel_size=13,
+                 n_exlayers=1,
+                 n_channels=13,
+                 last_layer_use_activation=False):
         super(ExEncoder, self).__init__()
-        self.ex_layers = nn.Sequential(
-            nn.Linear(dim_in, enclosing_encoder.dim_in))
+        inner_dim = enclosing_encoder.dim_in
+        self.scale_factor = inner_dim / dim_in
+        positions = torch.arange(inner_dim, dtype=torch.float32, 
+                                 requires_grad=False) / inner_dim
+        assert n_channels % 2 == 1
+        n_freq = (n_channels - 1) // 2
+        pe = torch.stack([
+            torch.sin(positions * freq) for freq in range(1, n_freq+1)] + [
+            torch.cos(positions * freq) for freq in range(1, n_freq+1)], dim=0)
+        self.position_embedding = self.register_buffer(pe[None, ...])
+        ex_layers = []
+        for _ in range(n_exlayers - 1):
+            ex_layers.extend([
+                nn.Conv1d(n_channels, n_channels, kernel_size, padding='same', bias=True),
+                nn.BatchNorm1d(n_channels, affine=True),
+                Swish(num_parameters=n_channels, init=1.0)])
+        ex_layers.append(nn.Conv1d(n_channels, n_channels, kernel_size, padding='same', bias=True))
+        if last_layer_use_activation:
+            ex_layers.append(nn.Softplus(beta=2))
+        self.ex_layers = nn.Sequential(*ex_layers) 
+
         self.enclosing_encoder = enclosing_encoder
 
     def forward(self, spec):
-        x = self.ex_layers(spec)
-        z_gauss = self.enclosing_encoder(x)
+        inner_spec = nn.functional.interpolate(spec, 
+            scale_factor=self.scale_factor, mode='linear')
+        inner_spec = torch.cat([
+            inner_spec, 
+            self.position_embedding.repeat([inner_spec.size(0), 1, 1])], 
+            dim=1)
+        inner_spec = self.ex_layers(inner_spec)
+        z_gauss = self.enclosing_encoder(inner_spec)
         return z_gauss
     
     def get_training_parameters(self):
