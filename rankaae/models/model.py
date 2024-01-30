@@ -228,16 +228,41 @@ class ExEncoder(nn.Module):
 class ExDecoder(nn.Module):
     def __init__(self,
                  dim_out: int,
-                 enclosing_decoder: FCDecoder):
+                 enclosing_decoder: FCDecoder,
+                 kernel_size=13,
+                 n_exlayers=1,
+                 n_channels=13):
         super(ExDecoder, self).__init__()
-        self.ex_layers = nn.Sequential(
-            nn.Linear(enclosing_decoder.dim_out, dim_out))   
+        self.scale_factor = dim_out / enclosing_decoder.dim_out
+        positions = torch.arange(dim_out, dtype=torch.float32, 
+                                 requires_grad=False) / dim_out
+        assert n_channels % 2 == 1
+        n_freq = (n_channels - 1) // 2
+        pe = torch.stack([
+            torch.sin(positions * freq) for freq in range(1, n_freq+1)] + [
+            torch.cos(positions * freq) for freq in range(1, n_freq+1)], dim=0)
+        self.position_embedding = self.register_buffer(pe[None, ...])
+        ex_layers = []
+        for _ in range(n_exlayers - 1):
+            ex_layers.extend([
+                nn.Conv1d(n_channels, n_channels, kernel_size, padding='same', bias=True),
+                nn.BatchNorm1d(n_channels, affine=True),
+                Swish(num_parameters=n_channels, init=1.0)])
+        ex_layers.append(nn.Conv1d(n_channels, n_channels, kernel_size, padding='same', bias=True))
+        self.ex_layers = nn.Sequential(ex_layers)   
+        
         self.enclosing_decoder = enclosing_decoder
         self.nstyle = enclosing_decoder.nstyle
 
     def forward(self, z_gauss):
-        x = self.enclosing_decoder(z_gauss)
-        spec = self.ex_layers(x)
+        inner_spec = self.enclosing_decoder(z_gauss)
+        inner_spec = nn.functional.interpolate(inner_spec, 
+            scale_factor=self.scale_factor, mode='linear')
+        inner_spec = torch.cat([
+            inner_spec, 
+            self.position_embedding.repeat([inner_spec.size(0), 1, 1])], 
+            dim=1)
+        spec = self.ex_layers(inner_spec)
         return spec
     
     def get_training_parameters(self):
