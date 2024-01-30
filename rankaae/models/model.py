@@ -241,7 +241,7 @@ class ExEncoder(nn.Module):
 
     def forward(self, spec):
         inner_spec = nn.functional.interpolate(spec, 
-            scale_factor=self.scale_factor, mode='linear')
+            scale_factor=self.scale_factor, mode='linear', align_corners=True)
         inner_spec = torch.cat([
             inner_spec, 
             self.position_embedding.repeat([inner_spec.size(0), 1, 1])], 
@@ -289,7 +289,7 @@ class ExDecoder(nn.Module):
     def forward(self, z_gauss):
         inner_spec = self.enclosing_decoder(z_gauss)
         inner_spec = nn.functional.interpolate(inner_spec, 
-            scale_factor=self.scale_factor, mode='linear')
+            scale_factor=self.scale_factor, mode='linear', align_corners=True)
         inner_spec = torch.cat([
             inner_spec, 
             self.position_embedding.repeat([inner_spec.size(0), 1, 1])], 
