@@ -216,7 +216,7 @@ class ExEncoder(nn.Module):
                  n_channels=13,
                  last_layer_use_activation=False):
         super(ExEncoder, self).__init__()
-        inner_dim = enclosing_encoder.dim_in
+        inner_dim = enclosing_encoder.dim_in + (kernel_size - 1) * n_exlayers
         self.scale_factor = inner_dim / dim_in
         positions = (torch.arange(inner_dim, dtype=torch.float32, 
                                   requires_grad=False) / inner_dim
@@ -230,10 +230,10 @@ class ExEncoder(nn.Module):
         ex_layers = []
         for _ in range(n_exlayers - 1):
             ex_layers.extend([
-                nn.Conv1d(n_channels, n_channels, kernel_size, padding='same', bias=True),
+                nn.Conv1d(n_channels, n_channels, kernel_size, padding='valid', bias=False),
                 nn.BatchNorm1d(n_channels, affine=True),
                 Swish(num_parameters=n_channels, init=1.0)])
-        ex_layers.append(nn.Conv1d(n_channels, 1, kernel_size, padding='same', bias=True))
+        ex_layers.append(nn.Conv1d(n_channels, 1, kernel_size, padding='valid', bias=True))
         if last_layer_use_activation:
             ex_layers.append(nn.Softplus(beta=2))
         self.ex_layers = nn.Sequential(*ex_layers) 
@@ -269,9 +269,10 @@ class ExDecoder(nn.Module):
                  n_channels=13,
                  last_layer_use_activation=False):
         super(ExDecoder, self).__init__()
-        self.scale_factor = dim_out / enclosing_decoder.dim_out
-        positions = (torch.arange(dim_out, dtype=torch.float32, 
-                                  requires_grad=False) / dim_out
+        padded_dim_out = dim_out + (kernel_size - 1) * n_exlayers
+        self.scale_factor = padded_dim_out / enclosing_decoder.dim_out
+        positions = (torch.arange(padded_dim_out, dtype=torch.float32, 
+                                  requires_grad=False) / padded_dim_out
                     ) * math.pi
         assert n_channels % 2 == 1
         n_freq = (n_channels - 1) // 2
@@ -282,10 +283,10 @@ class ExDecoder(nn.Module):
         ex_layers = []
         for _ in range(n_exlayers - 1):
             ex_layers.extend([
-                nn.Conv1d(n_channels, n_channels, kernel_size, padding='same', bias=True),
+                nn.Conv1d(n_channels, n_channels, kernel_size, padding='valid', bias=False),
                 nn.BatchNorm1d(n_channels, affine=True),
                 Swish(num_parameters=n_channels, init=1.0)])
-        ex_layers.append(nn.Conv1d(n_channels, 1, kernel_size, padding='same', bias=True))
+        ex_layers.append(nn.Conv1d(n_channels, 1, kernel_size, padding='valid', bias=True))
         if last_layer_use_activation:
             ex_layers.append(nn.Softplus(beta=2))
         self.ex_layers = nn.Sequential(*ex_layers)   
