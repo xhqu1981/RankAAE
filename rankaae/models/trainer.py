@@ -410,8 +410,12 @@ class Trainer:
         opt_cls = OPTIM_DICT[self.optimizer_name]
 
         recon_optimizer = opt_cls(
-            params = [{'params': self.encoder.get_training_parameters()}, 
-                      {'params': self.decoder.get_training_parameters()}],
+            params = [
+                {'params': self.decoder.get_training_parameters()}
+            ] if self.__dict__.get('reconn_decoder_only', False) else [
+                {'params': self.encoder.get_training_parameters()},
+                {'params': self.decoder.get_training_parameters()}                  
+            ],
             lr = self.lr_ratio_Reconn * self.lr_base,
             weight_decay = self.weight_decay)
 
@@ -480,8 +484,12 @@ class Trainer:
             assert isinstance(self.encoder, ExEncoder)
             assert isinstance(self.decoder, ExDecoder)
             exscf_optimizer = opt_cls(
-                params = [{'params': self.encoder.get_training_parameters()},
-                          {'params': self.decoder.get_training_parameters()}],
+                params = [
+                    {'params': self.encoder.get_training_parameters()}
+                ] if self.__dict__.get('exscf_encoder_only', False) else [
+                    {'params': self.encoder.get_training_parameters()},
+                    {'params': self.decoder.get_training_parameters()}                  
+                ],
                 lr = self.lr_ratio_exscf * self.lr_base,
                 weight_decay = self.weight_decay)
         else:
