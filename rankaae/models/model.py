@@ -214,13 +214,21 @@ class ExEncoder(nn.Module):
                  kernel_size=13,
                  n_exlayers=1,
                  n_channels=13,
-                 last_layer_use_activation=False):
+                 last_layer_use_activation=False,
+                 padding_mode='stretch'):
         super(ExEncoder, self).__init__()
-        inner_dim = enclosing_encoder.dim_in + (kernel_size - 1) * n_exlayers
+        if padding_mode == 'stretch':
+            inner_dim = enclosing_encoder.dim_in + (kernel_size - 1) * n_exlayers
+            pm = 'replicate'
+            padding = 'valid'
+        else:
+            inner_dim = enclosing_encoder.dim_in
+            pm = padding_mode
+            padding = 'same'
         self.scale_factor = inner_dim / dim_in
         positions = (torch.arange(inner_dim, dtype=torch.float32, 
                                   requires_grad=False) / inner_dim
-                    ) * math.pi
+                    ) * math.pi * 0.5
         assert n_channels % 2 == 1
         n_freq = (n_channels - 1) // 2
         pe = torch.stack([
@@ -230,10 +238,10 @@ class ExEncoder(nn.Module):
         ex_layers = []
         for _ in range(n_exlayers - 1):
             ex_layers.extend([
-                nn.Conv1d(n_channels, n_channels, kernel_size, padding='valid', bias=False),
+                nn.Conv1d(n_channels, n_channels, kernel_size, padding=padding, bias=False, padding_mode=pm),
                 nn.BatchNorm1d(n_channels, affine=True),
                 Swish(num_parameters=n_channels, init=1.0)])
-        ex_layers.append(nn.Conv1d(n_channels, 1, kernel_size, padding='valid', bias=True))
+        ex_layers.append(nn.Conv1d(n_channels, 1, kernel_size, padding=padding, bias=True, padding_mode=pm))
         if last_layer_use_activation:
             ex_layers.append(nn.Softplus(beta=2))
         self.ex_layers = nn.Sequential(*ex_layers) 

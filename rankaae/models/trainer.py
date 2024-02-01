@@ -550,12 +550,14 @@ class Trainer:
                                 kernel_size=p.get('kernel_size', 13),
                                 n_exlayers=p.get('n_exlayers', 1),
                                 n_channels=p.get('n_channels', 13),
-                                last_layer_use_activation=p.get('last_layer_use_activation', False))
+                                last_layer_use_activation=p.get('last_layer_use_activation', False),
+                                padding_mode=p.get('padding_mode', 'stretch'))
             decoder = ExDecoder(p.dim_out, enclosing_decoder=mt['Decoder'],
                                 kernel_size=p.get('kernel_size', 13),
                                 n_exlayers=p.get('n_exlayers', 1),
                                 n_channels=p.get('n_channels', 13),
-                                last_layer_use_activation=p.get('last_layer_use_activation', False))
+                                last_layer_use_activation=p.get('last_layer_use_activation', False),
+                                padding_mode=p.get('padding_mode', 'stretch'))
             discriminator = mt['Style Discriminator']
         else:
             # Generate encoder, decoder and discriminator
