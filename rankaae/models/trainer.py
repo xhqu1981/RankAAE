@@ -90,15 +90,9 @@ class Trainer:
         )
         
         for epoch in range(self.max_epoch):
-            # Set the networks in train mode (apply dropout when needed)
             self.encoder.train()
             self.decoder.train()
             self.discriminator.train()
-            if self.__dict__.get('turn_off_inner_bn_dropout', False):
-                assert isinstance(self.encoder, ExEncoder)
-                assert isinstance(self.decoder, ExDecoder)
-                self.encoder.enclosing_encoder.eval()
-                self.decoder.enclosing_decoder.eval()
 
             if self.gradient_reversal:
                 alpha_ = alpha(epoch/self.max_epoch, self.alpha_flat_step, self.alpha_limit)
@@ -572,26 +566,19 @@ class Trainer:
             logger.info("Generate model initial guess using random numbers")
             encoder = AE_CLS_DICT[p.ae_form]["encoder"](
                 nstyle = p.nstyle, 
-                dropout_rate = p.dropout_rate, 
                 dim_in = p.dim_in, 
                 n_layers = p.n_layers
             )
             decoder = AE_CLS_DICT[p.ae_form]["decoder"](
                 nstyle = p.nstyle, 
-                dropout_rate = p.dropout_rate, 
                 last_layer_activation = p.decoder_activation, 
                 dim_out = p.dim_out,
                 n_layers = p.n_layers
             )
-            if p.use_cnn_discriminator:
-                discriminator = DiscriminatorCNN(
-                    nstyle=p.nstyle, dropout_rate=p.dis_dropout_rate, noise=p.dis_noise
-                )
-            else:
-                discriminator = DiscriminatorFC(
-                    nstyle=p.nstyle, dropout_rate=p.dis_dropout_rate, noise=p.dis_noise,
-                    layers = p.FC_discriminator_layers
-                )
+            discriminator = DiscriminatorFC(
+                nstyle=p.nstyle, noise=p.dis_noise,
+                layers = p.FC_discriminator_layers
+            )
 
         for net in [encoder, decoder, discriminator]:
             net.to(device)

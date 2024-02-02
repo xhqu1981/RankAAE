@@ -101,7 +101,6 @@ class FCEncoder(nn.Module):
 
     def __init__(
         self, 
-        dropout_rate=0.2, 
         nstyle=5, 
         dim_in=256, 
         n_layers=3,
@@ -109,31 +108,18 @@ class FCEncoder(nn.Module):
         super(FCEncoder, self).__init__()
 
         self.dim_in = dim_in
-        sequential_layers = [ # first layer
-            nn.Linear(dim_in, hidden_size),
-            Swish(num_parameters=hidden_size, init=1.0),
-            nn.BatchNorm1d(hidden_size, affine=False),
-            nn.Dropout(p=dropout_rate),
-            
-        ]
-
+        sequential_layers = [nn.Linear(dim_in, hidden_size, False)] # first layer
         for _ in range(n_layers-2):
-            sequential_layers.extend(
-                [   nn.Linear(hidden_size, hidden_size),
-                    Swish(num_parameters=hidden_size, init=1.0),
-                    nn.BatchNorm1d(hidden_size, affine=False),
-                    nn.Dropout(dropout_rate),
-                ]
-            )
-
-        sequential_layers.extend( # last layer
-            [
-                nn.Linear(hidden_size, nstyle),
-                nn.BatchNorm1d(nstyle, affine=False)
-                # add this batchnorm layer to make sure the output is standardized.
-            ]
-        )
-
+            sequential_layers.extend([
+                nn.BatchNorm1d(hidden_size, affine=True),
+                Swish(num_parameters=hidden_size, init=1.0),
+                nn.Linear(hidden_size, hidden_size, bias=False)])
+        sequential_layers.extend([ # last layer
+            nn.BatchNorm1d(hidden_size, affine=True),
+            Swish(num_parameters=hidden_size, init=1.0),
+            nn.Linear(hidden_size, nstyle, bias=False),
+            nn.BatchNorm1d(nstyle, affine=False)])
+            # add this batchnorm layer to make sure the output is standardized.
         self.main = nn.Sequential(*sequential_layers)
 
     def forward(self, spec):
@@ -150,7 +136,6 @@ class FCDecoder(nn.Module):
 
     def __init__(
         self, 
-        dropout_rate=0.2, 
         nstyle=5, 
         debug=False, 
         dim_out=256, 
@@ -170,29 +155,17 @@ class FCDecoder(nn.Module):
             raise ValueError(
                 f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
 
-        sequential_layers = [ # the first layer.
-                nn.Linear(nstyle, hidden_size),
-                Swish(num_parameters=hidden_size, init=1.0),
-                nn.BatchNorm1d(hidden_size, affine=False),
-                nn.Dropout(p=dropout_rate),
-        ]
-
+        sequential_layers = [nn.Linear(nstyle, hidden_size, bias=False)] # the first layer.
         for _ in range(n_layers-2):
-            sequential_layers.extend( # the n layers in the middle
-                [
-                    nn.Linear(hidden_size, hidden_size),
-                    Swish(num_parameters=hidden_size, init=1.0),
-                    nn.BatchNorm1d(hidden_size, affine=False),
-                    nn.Dropout(p=dropout_rate),
-                ]
-            )
-        sequential_layers.extend( # the last layer
-            [
-                nn.Linear(hidden_size, dim_out),
-                ll_act,
-            ]
-        )  
-
+            sequential_layers.extend([ # the n layers in the middle
+                nn.BatchNorm1d(hidden_size, affine=True),
+                Swish(num_parameters=hidden_size, init=1.0),
+                nn.Linear(hidden_size, hidden_size, bias=False)])
+        sequential_layers.extend([ # the last layer
+            nn.BatchNorm1d(hidden_size, affine=True),
+            Swish(num_parameters=hidden_size, init=1.0),
+            nn.Linear(hidden_size, dim_out),
+            ll_act])  
         self.main = nn.Sequential(*sequential_layers)
         
         self.dim_out = dim_out
@@ -329,85 +302,21 @@ class ExDecoder(nn.Module):
     def get_training_parameters(self):
         return self.ex_layers.parameters()
 
-class DiscriminatorCNN(nn.Module):
-    def __init__(self, hiden_size=64, channels=2, kernel_size=5, dropout_rate=0.2, nstyle=5, noise=0.1):
-        super(DiscriminatorCNN, self).__init__()
-
-        self.pre = nn.Sequential(
-            nn.Linear(nstyle, hiden_size),
-            Swish(num_parameters=hiden_size, init=1.0)
-        )
-
-        self.main = nn.Sequential(
-            nn.BatchNorm1d(1, affine=False),
-            nn.Conv1d(1, channels, kernel_size=kernel_size, padding=(
-                kernel_size-1)//2, padding_mode='replicate'),
-            Swish(num_parameters=channels, init=1.0),
-
-            nn.BatchNorm1d(channels, affine=False),
-            nn.Conv1d(channels, channels, kernel_size=kernel_size,
-                      padding=(kernel_size-1)//2, padding_mode='replicate'),
-            Swish(num_parameters=channels, init=1.0),
-
-            nn.BatchNorm1d(channels, affine=False),
-            nn.Conv1d(channels, channels, kernel_size=kernel_size,
-                      padding=(kernel_size-1)//2, padding_mode='replicate'),
-            Swish(num_parameters=channels, init=1.0),
-
-            nn.BatchNorm1d(channels, affine=False),
-            nn.Conv1d(channels, channels, kernel_size=kernel_size, padding=(kernel_size-1)//2,
-                      padding_mode='replicate'),
-            Swish(num_parameters=channels, init=1.0),
-
-            nn.BatchNorm1d(channels, affine=False),
-            nn.Conv1d(channels, 1, kernel_size=kernel_size, padding=(
-                kernel_size-1)//2, padding_mode='replicate'),
-            Swish(num_parameters=1, init=1.0)
-        )
-
-        self.post = nn.Sequential(
-            nn.BatchNorm1d(hiden_size, affine=False),
-            nn.Dropout(p=dropout_rate),
-            nn.Linear(hiden_size, 1),
-        )
-
-        self.nstyle = nstyle
-        self.noise = noise
-
-    def forward(self, x, beta):
-        if self.training:
-            x = x + self.noise * torch.randn_like(x, requires_grad=False)
-        x = GradientReversalLayer.apply(x, beta)
-        x = self.pre(x)
-        x = x.unsqueeze(dim=1)
-        x = self.main(x)
-        x = x.squeeze(dim=1)
-        out = self.post(x)
-        return out
-
 
 class DiscriminatorFC(nn.Module):
-    def __init__(self, hiden_size=64, dropout_rate=0.2, nstyle=5, noise=0.1, layers=3):
+    def __init__(self, hiden_size=64, nstyle=5, noise=0.1, layers=3):
         super(DiscriminatorFC, self).__init__()
         
-        sequential_layers = [
-            nn.Linear(nstyle, hiden_size),
-            Swish(num_parameters=hiden_size, init=1.0),
-            nn.Dropout(p=dropout_rate),
-        ]
+        sequential_layers = [nn.Linear(nstyle, hiden_size, bias=False)]
         for _ in range(layers-2):
-            sequential_layers.extend(
-                [
-                    nn.Linear(hiden_size, hiden_size),
-                    Swish(num_parameters=hiden_size, init=1.0),
-                    nn.Dropout(p=dropout_rate),
-                ]
-            )
-        sequential_layers.extend(
-            [
-                nn.Linear(hiden_size, 1),
-            ]
-        )
+            sequential_layers.extend([
+                nn.BatchNorm1d(hiden_size, affine=True),
+                Swish(num_parameters=hiden_size, init=1.0),
+                nn.Linear(hiden_size, hiden_size, bias=False)])
+        sequential_layers.extend([
+            nn.BatchNorm1d(hiden_size, affine=True),
+            Swish(num_parameters=hiden_size, init=1.0),
+            nn.Linear(hiden_size, 1, bias=True)])
         self.main = nn.Sequential(*sequential_layers)
         
         self.nstyle = nstyle
@@ -419,23 +328,3 @@ class DiscriminatorFC(nn.Module):
         reverse_feature = GradientReversalLayer.apply(x, beta)
         out = self.main(reverse_feature)
         return out
-
-class DummyDualAAE(nn.Module):
-    def __init__(self, use_cnn_dis, cls_encoder, cls_decoder):
-        super(DummyDualAAE, self).__init__()
-        self.encoder = cls_encoder()
-        self.decoder = cls_decoder()
-        self.discriminator = DiscriminatorCNN() if use_cnn_dis else DiscriminatorFC()
-
-    def forward(self, x):
-        z = self.encoder(x)
-        x2 = self.decoder(z)
-        is_gau = self.discriminator(z, 0.3)
-        return x2, is_gau
-        
-    def forward(self, specs_in):
-        seg_selector = self.warp_indexer(self.grid_indices)
-        specs_warped = (specs_in[:, self.seg_source_indices] * seg_selector[None, ...]).sum(dim=-1)
-        specs_ws = specs_warped * self.k + self.b
-        return specs_ws
-
