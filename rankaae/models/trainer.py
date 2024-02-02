@@ -14,7 +14,6 @@ from torch import nn
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from rankaae.models.model import (
-    DiscriminatorCNN, 
     DiscriminatorFC,
     ExEncoder,
     ExDecoder
