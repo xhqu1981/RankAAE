@@ -185,13 +185,15 @@ class ExLayers(nn.Module):
                  dim_in: int,
                  dim_out: int,
                  kernel_size=13,
+                 hidden_kernel_size=1,
                  n_exlayers=1,
                  n_channels=13,
                  last_layer_use_activation=False,
                  padding_mode='stretch'):
         super(ExLayers, self).__init__()
         if padding_mode == 'stretch':
-            actual_dim_out = dim_out + (kernel_size - 1) * n_exlayers
+            actual_dim_out = dim_out + (kernel_size - 1) + (
+                hidden_kernel_size - 1) * (n_exlayers - 1)
             pm = 'replicate'
             padding = 'valid'
         else:
@@ -209,12 +211,15 @@ class ExLayers(nn.Module):
             torch.cos(positions * freq) for freq in range(1, n_freq+1)], dim=0)
         self.register_buffer("position_embedding", pe[None, ...])
         layers = []
-        for _ in range(n_exlayers - 1):
+        for i in range(n_exlayers - 1):
+            k = kernel_size if i == 0 else hidden_kernel_size
             layers.extend([
-                nn.Conv1d(n_channels, n_channels, kernel_size, padding=padding, bias=False, padding_mode=pm),
+                nn.Conv1d(n_channels, n_channels, k, padding=padding, bias=False, 
+                          padding_mode=pm),
                 nn.BatchNorm1d(n_channels, affine=True),
                 Swish(num_parameters=n_channels, init=1.0)])
-        layers.append(nn.Conv1d(n_channels, 1, kernel_size, padding=padding, bias=True, padding_mode=pm))
+        layers.append(nn.Conv1d(n_channels, 1, hidden_kernel_size, padding=padding, 
+                                bias=True, padding_mode=pm))
         if last_layer_use_activation:
             layers.append(nn.Softplus(beta=10))
         self.main= nn.Sequential(*layers) 
@@ -236,13 +241,15 @@ class ExEncoder(nn.Module):
                  dim_in: int,
                  enclosing_encoder: FCEncoder,
                  kernel_size=13,
+                 hidden_kernel_size=1,
                  n_exlayers=1,
                  n_channels=13,
                  last_layer_use_activation=False,
                  padding_mode='stretch'):
         super(ExEncoder, self).__init__()
         self.ex_layers = ExLayers(dim_in=dim_in, dim_out=enclosing_encoder.dim_in,
-            kernel_size=kernel_size, n_exlayers=n_exlayers, n_channels=n_channels, 
+            kernel_size=kernel_size, hidden_kernel_size=hidden_kernel_size,
+            n_exlayers=n_exlayers, n_channels=n_channels, 
             last_layer_use_activation=last_layer_use_activation, 
             padding_mode=padding_mode)
         self.enclosing_encoder = enclosing_encoder
@@ -261,13 +268,15 @@ class ExDecoder(nn.Module):
                  dim_out: int,
                  enclosing_decoder: FCDecoder,
                  kernel_size=13,
+                 hidden_kernel_size=1,
                  n_exlayers=1,
                  n_channels=13,
                  last_layer_use_activation=False,
                  padding_mode='stretch'):
         super(ExDecoder, self).__init__()
         self.ex_layers = ExLayers(dim_in=enclosing_decoder.dim_out, dim_out=dim_out,
-            kernel_size=kernel_size, n_exlayers=n_exlayers, n_channels=n_channels, 
+            kernel_size=kernel_size, hidden_kernel_size=hidden_kernel_size, 
+            n_exlayers=n_exlayers, n_channels=n_channels, 
             last_layer_use_activation=last_layer_use_activation, 
             padding_mode=padding_mode)
         self.enclosing_decoder = enclosing_decoder
