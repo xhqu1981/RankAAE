@@ -145,21 +145,12 @@ class FCDecoder(nn.Module):
         nstyle=5, 
         debug=False, 
         dim_out=256, 
-        last_layer_activation='ReLu', 
         n_layers=3,
         hidden_size=64
     ):
         super(FCDecoder, self).__init__()
-
-        if last_layer_activation == 'ReLu':
-            ll_act = nn.ReLU()
-        elif last_layer_activation == 'Swish':
-            ll_act = Swish(num_parameters=dim_out)
-        elif last_layer_activation == 'Softplus':
-            ll_act = nn.Softplus(beta=10)
-        else:
-            raise ValueError(
-                f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
+        
+        ll_act = nn.Softplus(beta=10)
 
         sequential_layers = [nn.Linear(nstyle, hidden_size, bias=False)] # the first layer.
         for _ in range(n_layers-2):

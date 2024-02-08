@@ -569,7 +569,6 @@ class Trainer:
             )
             decoder = AE_CLS_DICT[p.ae_form]["decoder"](
                 nstyle = p.nstyle, 
-                last_layer_activation = p.decoder_activation, 
                 dim_out = p.dim_out,
                 n_layers = p.n_layers
             )
