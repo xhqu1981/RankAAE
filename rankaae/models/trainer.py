@@ -92,7 +92,7 @@ class Trainer:
         
         for epoch in range(self.max_epoch):
             dropout_removal_step = self.__dict__.get('dropout_removal_step', -1)
-            if dropout_removal_step > 0 and epoch > dropout_removal_step:
+            if dropout_removal_step >= 0 and epoch >= dropout_removal_step:
                 assert isinstance(self.encoder, FCEncoder)
                 assert isinstance(self.decoder, FCDecoder)
                 self.encoder.remove_dropout_layers()
