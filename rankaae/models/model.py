@@ -6,7 +6,7 @@ from torch.autograd import Function
 import torch.nn.functional as F
 
 
-class activation_function(activation, nn.Module):
+class Swish(nn.Module):
     def __init__(self, num_parameters, init=1.0, dtype=torch.float32):
         super(Swish, self).__init__()
         self.beta = nn.Parameter(
