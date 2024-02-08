@@ -201,20 +201,11 @@ class Trainer:
                 if epoch < self.epoch_stop_smooth and self.optimizers["smoothness"] is not None: 
                     # turn off smooth loss after 500
                     self.zerograd()
-                    spec_out  = self.decoder(self.encoder(spec_in_no_noise))
                     smooth_loss_train = smoothness_loss(
-                        spec_out, 
+                        self.batch_size, self.nstyle, self.decoder, 
                         gs_kernel_size=self.gau_kernel_size,
                         device=self.device
                     )
-                    if isinstance(self.encoder, ExEncoder):
-                        spec_out  = self.encoder.ex_layers(spec_in_no_noise)
-                        smooth_loss_train += smoothness_loss(
-                            spec_out, 
-                            gs_kernel_size=self.gau_kernel_size,
-                            device=self.device
-                        )
-                    smooth_loss_train.backward()
                     self.optimizers["smoothness"].step()
                 else:
                     smooth_loss_train = torch.tensor(0.0)
@@ -284,7 +275,7 @@ class Trainer:
                 aux_loss_val = torch.tensor(0.0)
 
             smooth_loss_val = smoothness_loss(
-                spec_out_val, 
+                self.batch_size, self.nstyle, self.decoder, 
                 gs_kernel_size=self.gau_kernel_size,
                 device=self.device
             )

@@ -208,7 +208,7 @@ def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder, mse
     loss = mse_loss(innner_spec_reconn, innner_spec_sample)
     return loss
 
-def smoothness_loss(spec_out, gs_kernel_size, mse_loss=None, device=None):
+def smoothness_loss(batch_size, nstyle, decoder, gs_kernel_size, mse_loss=None, device=None):
     """
     Return the smoothness loss.
     """
@@ -217,6 +217,8 @@ def smoothness_loss(spec_out, gs_kernel_size, mse_loss=None, device=None):
     if mse_loss is None:
         mse_loss = nn.MSELoss().to(device)
 
+    z_sample = torch.randn(batch_size, nstyle, requires_grad=False, device=device)
+    spec_out = decoder(z_sample)
     gaussian_smoothing = GaussianSmoothing(
         channels=1, kernel_size=gs_kernel_size, sigma=3.0, dim=1,
         device = device
