@@ -7,17 +7,36 @@ import torch.nn.functional as F
 
 
 class Swish(nn.Module):
-    def __init__(self, num_parameters, init=1.0):
+    def __init__(self, num_parameters, init=1.0, dtype=torch.float32):
         super(Swish, self).__init__()
         self.beta = nn.Parameter(
-            torch.full((num_parameters,), fill_value=init, dtype=torch.float32), 
+            torch.full((num_parameters,), fill_value=init, dtype=dtype), 
             requires_grad=True)
+        self.init_value = init
     
     def forward(self, x):
         new_shape = [1, self.beta.size(0)] + [1] * (len(x.size()) - 2)
         ex_beta = self.beta.reshape(new_shape)
         x = x * F.sigmoid(ex_beta * x)
         return x
+    
+    def extra_repr(self):
+        s = f'{self.beta.size(0)}, init={self.init_value}'
+        return s
+    
+
+def activation_function(name, num_parameters, dtype=torch.float32):
+    act_cls_dict = {"ReLU": nn.ReLU, "PReLU": nn.PReLU, "Swish": Swish, "Sigmoid": nn.Sigmoid,
+                    "Softplus": nn.Softplus}
+    act_cls = act_cls_dict[name]
+    params = {}
+    if name in ["PReLU", "Swish"]:
+        params["num_parameters"] = num_parameters
+        params["dtype"] = dtype
+    if name in ["Softplus"]:
+        params["beta"] = 10
+    act_obj = act_cls(**params)
+    return act_obj
 
 
 class GradientReversalLayer(Function):
