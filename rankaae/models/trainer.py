@@ -551,13 +551,15 @@ class Trainer:
                                 n_exlayers=p.get('n_exlayers', 1),
                                 n_channels=p.get('n_channels', 13),
                                 last_layer_use_activation=p.get('last_layer_use_activation', False),
-                                padding_mode=p.get('padding_mode', 'stretch'))
+                                padding_mode=p.get('padding_mode', 'stretch'),
+                                activation=p.get('activation', 'Swish'))
             decoder = ExDecoder(p.dim_out, enclosing_decoder=mt['Decoder'],
                                 kernel_size=p.get('kernel_size', 13),
                                 n_exlayers=p.get('n_exlayers', 1),
                                 n_channels=p.get('n_channels', 13),
                                 last_layer_use_activation=p.get('last_layer_use_activation', False),
-                                padding_mode=p.get('padding_mode', 'stretch'))
+                                padding_mode=p.get('padding_mode', 'stretch'),
+                                activation=p.get('activation', 'Swish'))
             discriminator = mt['Style Discriminator']
         else:
             # Generate encoder, decoder and discriminator
@@ -565,16 +567,19 @@ class Trainer:
             encoder = AE_CLS_DICT[p.ae_form]["encoder"](
                 nstyle = p.nstyle, 
                 dim_in = p.dim_in, 
-                n_layers = p.n_layers
+                n_layers = p.n_layers,
+                activation=p.get('activation', 'Swish')
             )
             decoder = AE_CLS_DICT[p.ae_form]["decoder"](
                 nstyle = p.nstyle, 
                 dim_out = p.dim_out,
-                n_layers = p.n_layers
+                n_layers = p.n_layers,
+                activation=p.get('activation', 'Swish')
             )
             discriminator = DiscriminatorFC(
                 nstyle=p.nstyle, noise=p.dis_noise,
-                layers = p.FC_discriminator_layers
+                layers = p.FC_discriminator_layers,
+                activation=p.get('activation', 'Swish')
             )
 
         for net in [encoder, decoder, discriminator]:
