@@ -16,7 +16,9 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from rankaae.models.model import (
     DiscriminatorFC,
     ExEncoder,
-    ExDecoder
+    ExDecoder,
+    FCDecoder,
+    FCEncoder
 )
 from rankaae.models.dataloader import get_dataloaders
 from rankaae.utils.parameter import AE_CLS_DICT, OPTIM_DICT, Parameters
@@ -89,6 +91,12 @@ class Trainer:
         )
         
         for epoch in range(self.max_epoch):
+            if self.__dict__.get('dropout_removal_step', -1) > 0:
+                assert isinstance(self.encoder, FCEncoder)
+                assert isinstance(self.decoder, FCDecoder)
+                self.encoder.remove_dropout_layers()
+                self.decoder.remove_dropout_layers()
+
             self.encoder.train()
             self.decoder.train()
             self.discriminator.train()

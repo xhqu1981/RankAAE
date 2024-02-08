@@ -113,10 +113,12 @@ class FCEncoder(nn.Module):
             sequential_layers.extend([
                 nn.BatchNorm1d(hidden_size, affine=True),
                 Swish(num_parameters=hidden_size, init=1.0),
+                nn.Dropout(p=0.05),
                 nn.Linear(hidden_size, hidden_size, bias=False)])
         sequential_layers.extend([ # last layer
             nn.BatchNorm1d(hidden_size, affine=True),
             Swish(num_parameters=hidden_size, init=1.0),
+            nn.Dropout(p=0.05),
             nn.Linear(hidden_size, nstyle, bias=False),
             nn.BatchNorm1d(nstyle, affine=False)])
             # add this batchnorm layer to make sure the output is standardized.
@@ -131,6 +133,10 @@ class FCEncoder(nn.Module):
     
     def get_training_parameters(self):
         return self.parameters()
+    
+    def remove_dropout_layers(self):
+        self.main = nn.Sequential(*[m for m in self.main.children() 
+                                    if not isinstance(m, nn.Dropout)])
 
 class FCDecoder(nn.Module):
 
@@ -150,7 +156,7 @@ class FCDecoder(nn.Module):
         elif last_layer_activation == 'Swish':
             ll_act = Swish(num_parameters=dim_out)
         elif last_layer_activation == 'Softplus':
-            ll_act = nn.Softplus(beta=2)
+            ll_act = nn.Softplus(beta=10)
         else:
             raise ValueError(
                 f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
@@ -160,10 +166,12 @@ class FCDecoder(nn.Module):
             sequential_layers.extend([ # the n layers in the middle
                 nn.BatchNorm1d(hidden_size, affine=True),
                 Swish(num_parameters=hidden_size, init=1.0),
+                nn.Dropout(p=0.05),
                 nn.Linear(hidden_size, hidden_size, bias=False)])
         sequential_layers.extend([ # the last layer
             nn.BatchNorm1d(hidden_size, affine=True),
             Swish(num_parameters=hidden_size, init=1.0),
+            nn.Dropout(p=0.05),
             nn.Linear(hidden_size, dim_out),
             ll_act])  
         self.main = nn.Sequential(*sequential_layers)
@@ -178,6 +186,10 @@ class FCDecoder(nn.Module):
     
     def get_training_parameters(self):
         return self.parameters()
+    
+    def remove_dropout_layers(self):
+        self.main = nn.Sequential(*[m for m in self.main.children() 
+                                    if not isinstance(m, nn.Dropout)])
     
 
 class ExLayers(nn.Module):
