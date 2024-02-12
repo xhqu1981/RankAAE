@@ -407,7 +407,8 @@ class Trainer:
             mutual_info_optimizer = opt_cls(
                 params = [{'params': self.encoder.get_training_parameters()}, 
                           {'params': self.decoder.get_training_parameters()}],
-                lr = self.lr_ratio_Mutual * self.lr_base)
+                lr = self.lr_ratio_Mutual * self.lr_base,
+                weight_decay = self.weight_decay)
         else:
             mutual_info_optimizer = None
 
@@ -434,6 +435,7 @@ class Trainer:
             dis_optimizer = opt_cls(
                 [{'params': self.discriminator.parameters()}],
                 lr = self.lr_ratio_dis * self.lr_base,
+                weight_decay = self.weight_decay,
                 betas = (self.dis_beta * 0.9, self.dis_beta * 0.009 + 0.99))
         else:
             dis_optimizer = None
@@ -442,6 +444,7 @@ class Trainer:
             gen_optimizer = opt_cls(
                 [{'params': self.encoder.get_training_parameters()}],
                 lr = self.lr_ratio_gen * self.lr_base,
+                weight_decay = self.weight_decay,
                 betas = (self.gen_beta * 0.9, self.gen_beta * 0.009 + 0.99))
         else:
             gen_optimizer = None
@@ -451,6 +454,7 @@ class Trainer:
                 [{'params': self.discriminator.parameters()},
                  {'params': self.encoder.get_training_parameters()}],
                 lr = self.lr_ratio_adv * self.lr_base,
+                weight_decay = self.weight_decay,
                 betas = (self.dis_beta * 0.9, self.dis_beta * 0.009 + 0.99))
         else:
             adv_optimizer = None
