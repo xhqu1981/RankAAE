@@ -221,7 +221,7 @@ class ExLayers(nn.Module):
         layers.append(nn.Conv1d(n_channels, 1, hidden_kernel_size, padding=padding, 
                                 bias=True, padding_mode=pm))
         if last_layer_use_activation:
-            layers.append(nn.Softplus(beta=10))
+            layers.append(nn.Softplus(beta=2))
         self.main= nn.Sequential(*layers) 
 
     def forward(self, spec):
