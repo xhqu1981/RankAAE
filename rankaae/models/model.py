@@ -213,23 +213,22 @@ class ExLayers(nn.Module):
         pe = torch.arange(pre_dim_out, dtype=torch.float32, requires_grad=False) + 1
         self.register_buffer("position_embedding", pe[None, None, :])
         if n_exlayers == 1:
-            layers = [nn.Conv1d(2, 1, k, padding=padding, bias=True, 
+            layers = [nn.Conv1d(2, 1, kernel_size, padding=padding, bias=True, 
                                 padding_mode=pm)]
         else:
-            layers = [nn.Conv1d(2, n_channels, k, padding=padding, bias=False, 
+            layers = [nn.Conv1d(2, n_channels, kernel_size, padding=padding, bias=False, 
                                 padding_mode=pm)]
         for i in range(n_exlayers - 2):
-            k = kernel_size if i == 0 else hidden_kernel_size
             layers.extend([
                 nn.BatchNorm1d(n_channels, affine=True),
                 Swish(num_parameters=n_channels, init=1.0),
-                nn.Conv1d(n_channels, n_channels, k, padding=padding, bias=False, 
+                nn.Conv1d(n_channels, n_channels, hidden_kernel_size, padding=padding, bias=False, 
                           padding_mode=pm)])
         if n_exlayers >= 2:
             layers.extend([
                 nn.BatchNorm1d(n_channels, affine=True),
                 Swish(num_parameters=n_channels, init=1.0),
-                nn.Conv1d(n_channels, 1, k, padding=padding, bias=True, 
+                nn.Conv1d(n_channels, 1, hidden_kernel_size, padding=padding, bias=True, 
                           padding_mode=pm)])
         if last_layer_activation:
             ll_act = build_activation_function(dim_out, last_layer_activation)
