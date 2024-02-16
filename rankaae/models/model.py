@@ -210,7 +210,7 @@ class ExLayers(nn.Module):
             pm = padding_mode
             padding = 'same'
         self.scale_factor = pre_dim_out / dim_in
-        pe = torch.arange(pre_dim_out, dtype=torch.float32, requires_grad=False)
+        pe = torch.arange(pre_dim_out, dtype=torch.float32, requires_grad=False) + 1
         self.register_buffer("position_embedding", pe[None, None, :])
         if n_exlayers == 1:
             layers = [nn.Conv1d(2, 1, k, padding=padding, bias=True, 
