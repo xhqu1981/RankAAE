@@ -132,6 +132,23 @@ class FCEncoder(nn.Module):
     def get_training_parameters(self):
         return self.parameters()
 
+
+def build_activation_function(dim_out, activation_name):
+        if activation_name == 'ReLu':
+            ll_act = nn.ReLU()
+        elif activation_name == 'PReLU':
+            ll_act = nn.PReLU(num_parameters=dim_out)
+        elif activation_name == 'Swish':
+            ll_act = Swish(num_parameters=dim_out)
+        elif activation_name == 'Softplus':
+            ll_act = nn.Softplus(beta=2)
+        else:
+            raise ValueError(
+                f"Unknow activation function \"{activation_name}\", please use one available in Pytorch")
+                
+        return ll_act
+
+
 class FCDecoder(nn.Module):
 
     def __init__(
@@ -145,15 +162,7 @@ class FCDecoder(nn.Module):
     ):
         super(FCDecoder, self).__init__()
 
-        if last_layer_activation == 'ReLu':
-            ll_act = nn.ReLU()
-        elif last_layer_activation == 'Swish':
-            ll_act = Swish(num_parameters=dim_out)
-        elif last_layer_activation == 'Softplus':
-            ll_act = nn.Softplus(beta=2)
-        else:
-            raise ValueError(
-                f"Unknow activation function \"{last_layer_activation}\", please use one available in Pytorch")
+        ll_act = build_activation_function(dim_out, last_layer_activation)
 
         sequential_layers = [nn.Linear(nstyle, hidden_size, bias=False)] # the first layer.
         for _ in range(n_layers-2):
@@ -188,7 +197,7 @@ class ExLayers(nn.Module):
                  hidden_kernel_size=1,
                  n_exlayers=1,
                  n_channels=13,
-                 last_layer_use_activation=False,
+                 last_layer_activation='Softplus',
                  padding_mode='stretch'):
         super(ExLayers, self).__init__()
         if padding_mode == 'stretch':
@@ -220,8 +229,9 @@ class ExLayers(nn.Module):
                 Swish(num_parameters=n_channels, init=1.0)])
         layers.append(nn.Conv1d(n_channels, 1, hidden_kernel_size, padding=padding, 
                                 bias=True, padding_mode=pm))
-        if last_layer_use_activation:
-            layers.append(nn.Softplus(beta=2))
+        if last_layer_activation:
+            ll_act = build_activation_function(dim_out, last_layer_activation)
+            layers.append(ll_act)
         self.main= nn.Sequential(*layers) 
 
     def forward(self, spec):
@@ -244,13 +254,13 @@ class ExEncoder(nn.Module):
                  hidden_kernel_size=1,
                  n_exlayers=1,
                  n_channels=13,
-                 last_layer_use_activation=False,
+                 last_layer_activation='Softplus',
                  padding_mode='stretch'):
         super(ExEncoder, self).__init__()
         self.ex_layers = ExLayers(dim_in=dim_in, dim_out=enclosing_encoder.dim_in,
             kernel_size=kernel_size, hidden_kernel_size=hidden_kernel_size,
             n_exlayers=n_exlayers, n_channels=n_channels, 
-            last_layer_use_activation=last_layer_use_activation, 
+            last_layer_activation=last_layer_activation, 
             padding_mode=padding_mode)
         self.enclosing_encoder = enclosing_encoder
 
@@ -271,13 +281,13 @@ class ExDecoder(nn.Module):
                  hidden_kernel_size=1,
                  n_exlayers=1,
                  n_channels=13,
-                 last_layer_use_activation=False,
+                 last_layer_activation='Softplus',
                  padding_mode='stretch'):
         super(ExDecoder, self).__init__()
         self.ex_layers = ExLayers(dim_in=enclosing_decoder.dim_out, dim_out=dim_out,
             kernel_size=kernel_size, hidden_kernel_size=hidden_kernel_size, 
             n_exlayers=n_exlayers, n_channels=n_channels, 
-            last_layer_use_activation=last_layer_use_activation, 
+            last_layer_activation=last_layer_activation, 
             padding_mode=padding_mode)
         self.enclosing_decoder = enclosing_decoder
         self.nstyle = enclosing_decoder.nstyle
