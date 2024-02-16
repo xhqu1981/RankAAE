@@ -121,7 +121,7 @@ class Trainer:
                     self.zerograd()
                     dis_loss_train = adversarial_loss(
                         spec_in, styles, self.discriminator, alpha_,
-                        batch_size=self.batch_size, 
+                        batch_size=self.z_sample_batch_size, 
                         nll_loss=bce_lgt_loss, 
                         device=self.device
                     )
@@ -135,7 +135,7 @@ class Trainer:
 
                     dis_loss_train = discriminator_loss(
                         styles, self.discriminator, 
-                        batch_size=self.batch_size, 
+                        batch_size=self.z_sample_batch_size, 
                         loss_fn=bce_lgt_loss,
                         device=self.device
                     )
@@ -185,7 +185,7 @@ class Trainer:
                     self.zerograd()
                     styles = self.encoder(spec_in)
                     mutual_info_loss_train = mutual_info_loss(
-                        spec_in, styles,
+                        self.z_sample_batch_size, self.nstyle,
                         encoder=self.encoder, 
                         decoder=self.decoder,
                         n_aux=n_aux, 
@@ -202,7 +202,7 @@ class Trainer:
                     # turn off smooth loss after 500
                     self.zerograd()
                     smooth_loss_train = smoothness_loss(
-                        self.batch_size, self.nstyle, self.decoder, 
+                        self.z_sample_batch_size, self.nstyle, self.decoder, 
                         gs_kernel_size=self.gau_kernel_size,
                         device=self.device
                     )
@@ -229,7 +229,7 @@ class Trainer:
                 if self.optimizers["exscf"] is not None:
                     self.zerograd()
                     exscf_loss_train = exscf_loss(
-                        self.batch_size, self.nstyle, self.encoder, self.decoder,
+                        self.z_sample_batch_size, self.nstyle, self.encoder, self.decoder,
                         mse_loss=mse_loss, device=self.device)
                     exscf_loss_train.backward()
                     self.optimizers["exscf"].step()
@@ -275,13 +275,13 @@ class Trainer:
                 aux_loss_val = torch.tensor(0.0)
 
             smooth_loss_val = smoothness_loss(
-                self.batch_size, self.nstyle, self.decoder, 
+                self.z_sample_batch_size, self.nstyle, self.decoder, 
                 gs_kernel_size=self.gau_kernel_size,
                 device=self.device
             )
 
             mutual_info_loss_val =  mutual_info_loss(
-                spec_in_val, z,
+                self.z_sample_batch_size, self.nstyle,
                 encoder=self.encoder, 
                 decoder=self.decoder, 
                 n_aux=n_aux,
@@ -292,7 +292,7 @@ class Trainer:
             if self.gradient_reversal and self.optimizers["adversarial"] is not None:
                 dis_loss_val = adversarial_loss(
                     spec_in_val, z, self.discriminator, alpha_,
-                    batch_size=self.batch_size, 
+                    batch_size=self.z_sample_batch_size, 
                     nll_loss=bce_lgt_loss, 
                     device=self.device
                 )
@@ -300,7 +300,7 @@ class Trainer:
             elif self.optimizers["discriminator"] is not None and self.optimizers["generator"] is not None:
                 dis_loss_val = discriminator_loss(
                     z, self.discriminator, 
-                    batch_size=len(z),
+                    batch_size=self.z_sample_batch_size,
                     loss_fn=bce_lgt_loss,
                     device=self.device
                 )
@@ -317,7 +317,7 @@ class Trainer:
 
             if self.optimizers["exscf"] is not None:
                 exscf_loss_val = exscf_loss(
-                    self.batch_size, self.nstyle, self.encoder, self.decoder,
+                    self.z_sample_batch_size, self.nstyle, self.encoder, self.decoder,
                     mse_loss=mse_loss, device=self.device)
             else:
                 exscf_loss_val = torch.tensor(0.0)
