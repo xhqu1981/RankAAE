@@ -133,13 +133,13 @@ class FCEncoder(nn.Module):
         return self.parameters()
 
 
-def build_activation_function(dim_out, activation_name):
+def build_activation_function(num_parameters, activation_name):
         if activation_name == 'ReLu':
             ll_act = nn.ReLU()
         elif activation_name == 'PReLU':
-            ll_act = nn.PReLU(num_parameters=dim_out)
+            ll_act = nn.PReLU(num_parameters=num_parameters)
         elif activation_name == 'Swish':
-            ll_act = Swish(num_parameters=dim_out)
+            ll_act = Swish(num_parameters=num_parameters)
         elif activation_name == 'Softplus':
             ll_act = nn.Softplus(beta=2)
         else:
@@ -231,7 +231,7 @@ class ExLayers(nn.Module):
                 nn.Conv1d(n_channels, 1, hidden_kernel_size, padding=padding, bias=True, 
                           padding_mode=pm)])
         if last_layer_activation:
-            ll_act = build_activation_function(dim_out, last_layer_activation)
+            ll_act = build_activation_function(1, last_layer_activation)
             layers.append(ll_act)
         self.main= nn.Sequential(*layers) 
 
