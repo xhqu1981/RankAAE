@@ -210,25 +210,27 @@ class ExLayers(nn.Module):
             pm = padding_mode
             padding = 'same'
         self.scale_factor = pre_dim_out / dim_in
-        self.scale_factor = pre_dim_out / dim_in
-        positions = (torch.arange(pre_dim_out, dtype=torch.float32, 
-                                  requires_grad=False) / pre_dim_out
-                    ) * math.pi * 0.5
-        assert n_channels >= 2
-        pe = torch.stack([
-            torch.sin(positions * freq) for freq in range(1, n_channels, 2)] + [
-            torch.cos(positions * freq) for freq in range(2, n_channels, 2)], dim=0)
-        self.register_buffer("position_embedding", pe[None, ...])
-        assert n_exlayers >= 1
-        layers = []
-        for _ in range(n_exlayers - 1):
+        pe = torch.arange(pre_dim_out, dtype=torch.float32, requires_grad=False) + 1
+        self.register_buffer("position_embedding", pe[None, None, :])
+        assert n_exlayers > 0
+        if n_exlayers == 1:
+            layers = [nn.Conv1d(2, 1, kernel_size, padding=padding, bias=True, 
+                                padding_mode=pm)]
+        else:
+            layers = [nn.Conv1d(2, n_channels, kernel_size, padding=padding, bias=False, 
+                                padding_mode=pm)]
+        for i in range(n_exlayers - 2):
             layers.extend([
-                nn.Conv1d(n_channels, n_channels, hidden_kernel_size, padding=padding, bias=False, 
-                          padding_mode=pm),
                 nn.BatchNorm1d(n_channels, affine=True),
-                Swish(num_parameters=n_channels, init=1.0)])
-        layers.append(nn.Conv1d(n_channels, 1, hidden_kernel_size, padding=padding, bias=True, 
-                                padding_mode=pm))
+                Swish(num_parameters=n_channels, init=1.0),
+                nn.Conv1d(n_channels, n_channels, hidden_kernel_size, padding=padding, bias=False, 
+                          padding_mode=pm)])
+        if n_exlayers >= 2:
+            layers.extend([
+                nn.BatchNorm1d(n_channels, affine=True),
+                Swish(num_parameters=n_channels, init=1.0),
+                nn.Conv1d(n_channels, 1, hidden_kernel_size, padding=padding, bias=True, 
+                          padding_mode=pm)])
         if last_layer_activation:
             ll_act = build_activation_function(1, last_layer_activation)
             layers.append(ll_act)
