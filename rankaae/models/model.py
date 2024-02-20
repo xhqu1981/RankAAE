@@ -134,7 +134,7 @@ class FCEncoder(nn.Module):
 
 
 def build_activation_function(num_parameters, activation_name):
-        if activation_name == 'ReLu':
+        if activation_name == 'ReLU':
             ll_act = nn.ReLU()
         elif activation_name == 'PReLU':
             ll_act = nn.PReLU(num_parameters=num_parameters)
