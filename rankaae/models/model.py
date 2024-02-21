@@ -195,11 +195,11 @@ class ExLayers(nn.Module):
                  dim_out: int,
                  gate_window=13,
                  n_exlayers=1,
+                 n_gate_layers=5,
                  n_channels=13,
                  last_layer_activation='Softplus',
                  padding_mode='stretch',
-                 energy_noise=0.2,
-                 n_gate_layers=4):
+                 energy_noise=0.2):
         super(ExLayers, self).__init__()
 
         if padding_mode == 'stretch':
