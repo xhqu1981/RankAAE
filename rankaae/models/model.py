@@ -199,7 +199,7 @@ class ExLayers(nn.Module):
                  n_channels=13,
                  last_layer_activation='Softplus',
                  padding_mode='stretch',
-                 energy_noise=0.2):
+                 energy_noise=0.1):
         super(ExLayers, self).__init__()
 
         if padding_mode == 'stretch':
