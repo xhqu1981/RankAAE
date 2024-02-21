@@ -543,7 +543,7 @@ class Trainer:
             logger.info(f"Reading model initial guess from {prev_fn}")
             mt = torch.load(prev_fn, map_location=device)
             encoder = ExEncoder(p.dim_in, enclosing_encoder=mt['Encoder'],
-                                gate_window=p.get('kernel_size', 13),
+                                gate_window=p.get('gate_window', 13),
                                 n_exlayers=p.get('n_exlayers', 1),
                                 n_gate_layers=p.get('n_gate_layers', 5),
                                 n_channels=p.get('n_channels', 13),
@@ -551,7 +551,7 @@ class Trainer:
                                 padding_mode=p.get('padding_mode', 'stretch'),
                                 energy_noise=p.get('energy_noise', 0.1))
             decoder = ExDecoder(p.dim_out, enclosing_decoder=mt['Decoder'],
-                                gate_window=p.get('kernel_size', 13),
+                                gate_window=p.get('gate_window', 13),
                                 n_exlayers=p.get('n_exlayers', 1),
                                 n_gate_layers=p.get('n_gate_layers', 5),
                                 n_channels=p.get('n_channels', 13),
