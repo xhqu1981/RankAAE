@@ -193,57 +193,82 @@ class ExLayers(nn.Module):
     def __init__(self,
                  dim_in: int,
                  dim_out: int,
-                 kernel_size=13,
-                 hidden_kernel_size=1,
+                 gate_window=13,
                  n_exlayers=1,
                  n_channels=13,
                  last_layer_activation='Softplus',
-                 padding_mode='stretch'):
+                 padding_mode='stretch',
+                 energy_noise=0.2,
+                 n_gate_layers=4):
         super(ExLayers, self).__init__()
+
         if padding_mode == 'stretch':
-            pre_dim_out = dim_out + (kernel_size - 1) + (
-                hidden_kernel_size - 1) * (n_exlayers - 1)
-            pm = 'replicate'
-            padding = 'valid'
+            pre_dim_out = dim_out + (gate_window - 1)
+            self.padding_mode = 'no'
+        elif padding_mode == 'zeros':
+            pre_dim_out = dim_out
+            self.padding_mode = 'constant'
         else:
             pre_dim_out = dim_out
-            pm = padding_mode
-            padding = 'same'
+            self.padding_mode = padding_mode
+        left_padding = gate_window // 2
+        self.num_pads = (left_padding, (gate_window - 1) - left_padding) 
         self.scale_factor = pre_dim_out / dim_in
-        pe = torch.arange(pre_dim_out, dtype=torch.float32, requires_grad=False) + 1
-        self.register_buffer("position_embedding", pe[None, None, :])
+        self.energy_noise = energy_noise
+
+        pe = torch.arange(dim_out, dtype=torch.float32, requires_grad=False) + 1
+        self.register_buffer("position_embedding", pe[:, None])
+        gate_layers = [nn.Linear(1, gate_window, bias=False)]
+        assert n_gate_layers >= 2
+        for _ in range(n_gate_layers-2):
+            gate_layers.extend([
+                nn.BatchNorm1d(gate_window, affine=True),
+                Swish(num_parameters=gate_window, init=1.0),
+                nn.Linear(gate_window, gate_window, bias=False)])
+        gate_layers.extend([
+            nn.BatchNorm1d(gate_window, affine=True),
+            Swish(num_parameters=gate_window, init=1.0),
+            nn.Linear(gate_window, gate_window, bias=True),
+            nn.Softmax(dim=1)])  
+        self.gate_weights = nn.Sequential(**gate_layers)
+        uw = torch.eye(gate_window, dtype=torch.float32, requires_grad=False)[:, None, :]
+        self.register_buffer('upend_weights', uw)
+
         assert n_exlayers > 0
         if n_exlayers == 1:
-            layers = [nn.Conv1d(2, 1, kernel_size, padding=padding, bias=True, 
-                                padding_mode=pm)]
+            intensity_layers = [
+                nn.Conv1d(1, 1, kernel_size=1, bias=True)]
         else:
-            layers = [nn.Conv1d(2, n_channels, kernel_size, padding=padding, bias=False, 
-                                padding_mode=pm)]
-        for i in range(n_exlayers - 2):
-            layers.extend([
+            intensity_layers = [
+                nn.Conv1d(1, n_channels, kernel_size=1, bias=False)]
+        for _ in range(n_exlayers - 2):
+            intensity_layers.extend([
                 nn.BatchNorm1d(n_channels, affine=True),
                 Swish(num_parameters=n_channels, init=1.0),
-                nn.Conv1d(n_channels, n_channels, hidden_kernel_size, padding=padding, bias=False, 
-                          padding_mode=pm)])
+                nn.Conv1d(n_channels, n_channels, kernel_size=1, bias=False)])
         if n_exlayers >= 2:
-            layers.extend([
+            intensity_layers.extend([
                 nn.BatchNorm1d(n_channels, affine=True),
                 Swish(num_parameters=n_channels, init=1.0),
-                nn.Conv1d(n_channels, 1, hidden_kernel_size, padding=padding, bias=True, 
-                          padding_mode=pm)])
+                nn.Conv1d(n_channels, 1, kernel_size=1, bias=True)])
         if last_layer_activation:
             ll_act = build_activation_function(1, last_layer_activation)
-            layers.append(ll_act)
-        self.main= nn.Sequential(*layers) 
+            intensity_layers.append(ll_act)
+        self.intensity_adjuster = nn.Sequential(*intensity_layers) 
 
     def forward(self, spec):
         spec = nn.functional.interpolate(spec[:, None, :], 
             scale_factor=self.scale_factor, mode='linear', align_corners=True)
-        spec = torch.cat([
-            spec, 
-            self.position_embedding.repeat([spec.size(0), 1, 1])], 
-            dim=1)
-        spec = self.main(spec)
+        if self.padding_mode != 'no':
+            spec = F.pad(spec, self.num_pads, mode=self.padding_mode)
+        spec = self.intensity_adjuster(spec)
+        spec = F.conv1d(spec, self.upend_weights)
+        if self.training:
+            pe = self.position_embedding + torch.randn_like(self.position_embedding) * self.energy_noise
+        else:
+            pe = self.position_embedding
+        sel_weights = self.gate_weights(pe).T[None, ...]
+        spec = (spec * sel_weights).sum(dim=1)
         spec = spec.squeeze(dim=1)
         return spec
 
@@ -260,7 +285,7 @@ class ExEncoder(nn.Module):
                  padding_mode='stretch'):
         super(ExEncoder, self).__init__()
         self.ex_layers = ExLayers(dim_in=dim_in, dim_out=enclosing_encoder.dim_in,
-            kernel_size=kernel_size, hidden_kernel_size=hidden_kernel_size,
+            gate_window=kernel_size, hidden_kernel_size=hidden_kernel_size,
             n_exlayers=n_exlayers, n_channels=n_channels, 
             last_layer_activation=last_layer_activation, 
             padding_mode=padding_mode)
@@ -287,7 +312,7 @@ class ExDecoder(nn.Module):
                  padding_mode='stretch'):
         super(ExDecoder, self).__init__()
         self.ex_layers = ExLayers(dim_in=enclosing_decoder.dim_out, dim_out=dim_out,
-            kernel_size=kernel_size, hidden_kernel_size=hidden_kernel_size, 
+            gate_window=kernel_size, hidden_kernel_size=hidden_kernel_size, 
             n_exlayers=n_exlayers, n_channels=n_channels, 
             last_layer_activation=last_layer_activation, 
             padding_mode=padding_mode)
