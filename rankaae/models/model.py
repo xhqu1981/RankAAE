@@ -230,7 +230,7 @@ class ExLayers(nn.Module):
             Swish(num_parameters=gate_window, init=1.0),
             nn.Linear(gate_window, gate_window, bias=True),
             nn.Softmax(dim=1)])  
-        self.gate_weights = nn.Sequential(**gate_layers)
+        self.gate_weights = nn.Sequential(*gate_layers)
         uw = torch.eye(gate_window, dtype=torch.float32, requires_grad=False)[:, None, :]
         self.register_buffer('upend_weights', uw)
 
