@@ -547,6 +547,7 @@ class Trainer:
                                 n_exlayers=p.get('n_exlayers', 1),
                                 n_gate_layers=p.get('n_gate_layers', 5),
                                 n_channels=p.get('n_channels', 13),
+                                hidden_kernel_size=p.get('hidden_kernel_size', 3),
                                 last_layer_activation=p.decoder_activation,
                                 padding_mode=p.get('padding_mode', 'stretch'),
                                 energy_noise=p.get('energy_noise', 0.1))
@@ -555,6 +556,7 @@ class Trainer:
                                 n_exlayers=p.get('n_exlayers', 1),
                                 n_gate_layers=p.get('n_gate_layers', 5),
                                 n_channels=p.get('n_channels', 13),
+                                hidden_kernel_size=p.get('hidden_kernel_size', 3),
                                 last_layer_activation=p.decoder_activation,
                                 padding_mode=p.get('padding_mode', 'stretch'),
                                 energy_noise=p.get('energy_noise', 0.1))

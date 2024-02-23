@@ -197,19 +197,23 @@ class ExLayers(nn.Module):
                  n_exlayers=1,
                  n_gate_layers=5,
                  n_channels=13,
+                 hidden_kernel_size=3,
                  last_layer_activation='Softplus',
                  padding_mode='stretch',
                  energy_noise=0.1):
         super(ExLayers, self).__init__()
 
         if padding_mode == 'stretch':
-            pre_dim_out = dim_out + (gate_window - 1)
-            self.padding_mode = 'no'
+            pre_dim_out = dim_out + (gate_window - 1) + (hidden_kernel_size - 1) * n_exlayers
+            self.padding = 'valid'
+            self.padding_mode = 'zeros'
         elif padding_mode == 'zeros':
             pre_dim_out = dim_out
+            self.padding = 'same'
             self.padding_mode = 'constant'
         else:
             pre_dim_out = dim_out
+            self.padding = 'same'
             self.padding_mode = padding_mode
         left_padding = gate_window // 2
         self.num_pads = (left_padding, (gate_window - 1) - left_padding) 
@@ -237,20 +241,24 @@ class ExLayers(nn.Module):
         assert n_exlayers > 0
         if n_exlayers == 1:
             intensity_layers = [
-                nn.Conv1d(1, 1, kernel_size=1, bias=True)]
+                nn.Conv1d(1, 1, kernel_size=hidden_kernel_size, bias=True,
+                          padding=self.padding, padding_mode=self.padding_mode)]
         else:
             intensity_layers = [
-                nn.Conv1d(1, n_channels, kernel_size=1, bias=False)]
+                nn.Conv1d(1, n_channels, kernel_size=hidden_kernel_size, bias=False,
+                          padding=self.padding, padding_mode=self.padding_mode)]
         for _ in range(n_exlayers - 2):
             intensity_layers.extend([
                 nn.BatchNorm1d(n_channels, affine=True),
                 Swish(num_parameters=n_channels, init=1.0),
-                nn.Conv1d(n_channels, n_channels, kernel_size=1, bias=False)])
+                nn.Conv1d(n_channels, n_channels, kernel_size=hidden_kernel_size, bias=False,
+                          padding=self.padding, padding_mode=self.padding_mode)])
         if n_exlayers >= 2:
             intensity_layers.extend([
                 nn.BatchNorm1d(n_channels, affine=True),
                 Swish(num_parameters=n_channels, init=1.0),
-                nn.Conv1d(n_channels, 1, kernel_size=1, bias=True)])
+                nn.Conv1d(n_channels, 1, kernel_size=hidden_kernel_size, bias=True,
+                          padding=self.padding, padding_mode=self.padding_mode)])
         if last_layer_activation:
             ll_act = build_activation_function(1, last_layer_activation)
             intensity_layers.append(ll_act)
@@ -259,7 +267,7 @@ class ExLayers(nn.Module):
     def forward(self, spec):
         spec = nn.functional.interpolate(spec[:, None, :], 
             scale_factor=self.scale_factor, mode='linear', align_corners=True)
-        if self.padding_mode != 'no':
+        if self.padding == 'same':
             spec = F.pad(spec, self.num_pads, mode=self.padding_mode)
         spec = self.intensity_adjuster(spec)
         spec = F.conv1d(spec, self.upend_weights)
@@ -281,13 +289,15 @@ class ExEncoder(nn.Module):
                  n_exlayers=1,
                  n_gate_layers=5,
                  n_channels=13,
+                 hidden_kernel_size=3,
                  last_layer_activation='Softplus',
                  padding_mode='stretch',
                  energy_noise=0.1):
         super(ExEncoder, self).__init__()
         self.ex_layers = ExLayers(dim_in=dim_in, dim_out=enclosing_encoder.dim_in,
             gate_window=gate_window, n_exlayers=n_exlayers, n_gate_layers=n_gate_layers, 
-            n_channels=n_channels, last_layer_activation=last_layer_activation,
+            n_channels=n_channels, hidden_kernel_size=hidden_kernel_size, 
+            last_layer_activation=last_layer_activation,
             padding_mode=padding_mode, energy_noise=energy_noise)
         self.enclosing_encoder = enclosing_encoder
 
@@ -308,13 +318,15 @@ class ExDecoder(nn.Module):
                  n_exlayers=1,
                  n_gate_layers=5,
                  n_channels=13,
+                 hidden_kernel_size=3,
                  last_layer_activation='Softplus',
                  padding_mode='stretch',
                  energy_noise=0.1):
         super(ExDecoder, self).__init__()
         self.ex_layers = ExLayers(dim_in=enclosing_decoder.dim_out, dim_out=dim_out,
             gate_window=gate_window, n_exlayers=n_exlayers, n_gate_layers=n_gate_layers, 
-            n_channels=n_channels, last_layer_activation=last_layer_activation,
+            n_channels=n_channels, hidden_kernel_size=hidden_kernel_size,
+            last_layer_activation=last_layer_activation,
             padding_mode=padding_mode, energy_noise=energy_noise)
         self.enclosing_decoder = enclosing_decoder
         self.nstyle = enclosing_decoder.nstyle
