@@ -207,10 +207,6 @@ class ExLayers(nn.Module):
             pre_dim_out = dim_out + (gate_window - 1) + (hidden_kernel_size - 1) * n_exlayers
             self.padding = 'valid'
             self.padding_mode = 'zeros'
-        elif padding_mode == 'zeros':
-            pre_dim_out = dim_out
-            self.padding = 'same'
-            self.padding_mode = 'constant'
         else:
             pre_dim_out = dim_out
             self.padding = 'same'
@@ -268,7 +264,8 @@ class ExLayers(nn.Module):
         spec = nn.functional.interpolate(spec[:, None, :], 
             scale_factor=self.scale_factor, mode='linear', align_corners=True)
         if self.padding == 'same':
-            spec = F.pad(spec, self.num_pads, mode=self.padding_mode)
+            pm = self.padding_mode.replace('zeros', 'constant')
+            spec = F.pad(spec, self.num_pads, mode=pm)
         spec = self.intensity_adjuster(spec)
         spec = F.conv1d(spec, self.upend_weights)
         if self.training:
