@@ -174,7 +174,7 @@ class FCDecoder(nn.Module):
         sequential_layers.extend([ # the last layer
             Swish(num_parameters=hidden_size, init=1.0),
             nn.BatchNorm1d(hidden_size, affine=False),
-            nn.Linear(hidden_size, dim_out, bias=True),
+            nn.Linear(hidden_size, dim_out),
             ll_act])  
         self.main = nn.Sequential(*sequential_layers)
         
