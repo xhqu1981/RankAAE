@@ -2,7 +2,7 @@ from typing import no_type_check_decorator
 import torch
 from torch import nn
 import numpy as np
-from rankaae.models.model import ExDecoder, ExEncoder, GaussianSmoothing
+from rankaae.models.model import ExDecoder, ExEncoder, FCDecoder, GaussianSmoothing
 
 
 class TrainingLossGeneral():
@@ -206,7 +206,7 @@ def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder, mse
     loss = mse_loss(innner_spec_reconn, innner_spec_sample)
     return loss
 
-def smoothness_loss(batch_size, nstyle, decoder, gs_kernel_size, mse_loss=None, device=None):
+def smoothness_loss(batch_size, nstyle, decoder, gs_kernel_size, mse_loss=None, device=None, layered_smooth=False):
     """
     Return the smoothness loss.
     """
@@ -217,15 +217,25 @@ def smoothness_loss(batch_size, nstyle, decoder, gs_kernel_size, mse_loss=None, 
 
     z_sample = torch.randn(batch_size, nstyle, requires_grad=False, device=device)
     spec_out = decoder(z_sample)
+    smooth_list = [spec_out]
+    x = z_sample
+    if layered_smooth:
+        assert isinstance(decoder, FCDecoder)
+        for m in decoder.main.children:
+            x = m(x)
+            if isinstance(m, nn.Linear):
+                smooth_list.append(x)
+        smooth_list.pop(-1)
     gaussian_smoothing = GaussianSmoothing(
         channels=1, kernel_size=gs_kernel_size, sigma=3.0, dim=1,
         device = device
     )
     padding4smooth = nn.ReplicationPad1d(padding=(gs_kernel_size - 1)//2).to(device)
-    spec_out_padded = padding4smooth(spec_out.unsqueeze(dim=1))
-    spec_smoothed = gaussian_smoothing(spec_out_padded).squeeze(dim=1).detach()
-    smooth_loss_train = mse_loss(spec_out, spec_smoothed)
-
+    smooth_loss_train = 0.0
+    for spec_out in smooth_list:
+        spec_out_padded = padding4smooth(spec_out.unsqueeze(dim=1))
+        spec_smoothed = gaussian_smoothing(spec_out_padded).squeeze(dim=1).detach()
+        smooth_loss_train = smooth_loss_train + mse_loss(spec_out, spec_smoothed)
     return smooth_loss_train
 
 def alpha(epoch_percentage, step=800, limit=0.7):
