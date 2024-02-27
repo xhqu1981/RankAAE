@@ -221,7 +221,7 @@ def smoothness_loss(batch_size, nstyle, decoder, gs_kernel_size, mse_loss=None, 
     x = z_sample
     if layered_smooth:
         assert isinstance(decoder, FCDecoder)
-        for m in decoder.main.children:
+        for m in decoder.main.children():
             x = m(x)
             if isinstance(m, nn.Linear):
                 smooth_list.append(x)
