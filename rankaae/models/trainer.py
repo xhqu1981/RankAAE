@@ -539,7 +539,8 @@ class Trainer:
                 logger.warn("Use Slow CPU!")
             device = torch.device("cpu")
 
-        if 'initial_guess_dir' in p.__dict__ and os.path.isdir(p.initial_guess_dir):
+        if 'initial_guess_dir' in p.__dict__:
+            assert os.path.isdir(p.initial_guess_dir)
             # load encoder, decoder and discriminator from file
             prev_fn = os.path.join(p.initial_guess_dir, *work_dir.split('/')[-2:], 'final.pt')
             logger.info(f"Reading model initial guess from {prev_fn}")
