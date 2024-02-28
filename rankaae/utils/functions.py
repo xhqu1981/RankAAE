@@ -228,7 +228,7 @@ def smoothness_loss(batch_size, nstyle, decoder, gs_kernel_size, mse_loss=None, 
         assert isinstance(decoder, FCDecoder)
         smooth_models = [decoder]
         if encoder is not None:
-            assert isinstance(decoder, FCEncoder)
+            assert isinstance(encoder, FCEncoder)
             smooth_models.append(encoder)
         for model in smooth_models:
             for m in model.main.children():
