@@ -2,7 +2,12 @@ from typing import no_type_check_decorator
 import torch
 from torch import nn
 import numpy as np
-from rankaae.models.model import ExDecoder, ExEncoder, FCDecoder, GaussianSmoothing
+from rankaae.models.model import (
+    ExDecoder, 
+    ExEncoder, 
+    FCDecoder, 
+    FCEncoder, 
+    GaussianSmoothing)
 
 
 class TrainingLossGeneral():
@@ -206,7 +211,7 @@ def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder, mse
     loss = mse_loss(innner_spec_reconn, innner_spec_sample)
     return loss
 
-def smoothness_loss(batch_size, nstyle, decoder, gs_kernel_size, mse_loss=None, device=None, layered_smooth=False):
+def smoothness_loss(batch_size, nstyle, decoder, gs_kernel_size, mse_loss=None, device=None, layered_smooth=False, encoder=None):
     """
     Return the smoothness loss.
     """
@@ -221,11 +226,20 @@ def smoothness_loss(batch_size, nstyle, decoder, gs_kernel_size, mse_loss=None, 
     x = z_sample
     if layered_smooth:
         assert isinstance(decoder, FCDecoder)
+        smooth_models = [decoder]
+        if encoder is not None:
+            assert isinstance(decoder, FCEncoder)
+            smooth_models.append(encoder)
+        for model in smooth_models:
+            for m in model.main.children():
+                x = m(x)
+                if isinstance(m, nn.Linear):
+                    smooth_list.append(x)
+            smooth_list.pop(-1)
         for m in decoder.main.children():
             x = m(x)
             if isinstance(m, nn.Linear):
                 smooth_list.append(x)
-        smooth_list.pop(-1)
     gaussian_smoothing = GaussianSmoothing(
         channels=1, kernel_size=gs_kernel_size, sigma=3.0, dim=1,
         device = device

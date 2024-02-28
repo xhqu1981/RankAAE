@@ -205,7 +205,8 @@ class Trainer:
                         self.z_sample_batch_size, self.nstyle, self.decoder, 
                         gs_kernel_size=self.gau_kernel_size,
                         device=self.device,
-                        layered_smooth=self.__dict__.get('layered_smooth', False)
+                        layered_smooth=self.__dict__.get('layered_smooth', False),
+                        encoder=self.encoder
                     )
                     self.optimizers["smoothness"].step()
                 else:
