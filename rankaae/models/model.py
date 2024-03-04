@@ -200,7 +200,9 @@ class ExLayers(nn.Module):
                  hidden_kernel_size=3,
                  last_layer_activation='Softplus',
                  padding_mode='stretch',
-                 energy_noise=0.1):
+                 energy_noise=0.1,
+                 ex_dropout=0.05,
+                 gate_dropout=0.05):
         super(ExLayers, self).__init__()
 
         if padding_mode == 'stretch':
@@ -224,10 +226,12 @@ class ExLayers(nn.Module):
             gate_layers.extend([
                 nn.BatchNorm1d(gate_window, affine=True),
                 Swish(num_parameters=gate_window, init=1.0),
+                nn.Dropout(gate_dropout),
                 nn.Linear(gate_window, gate_window, bias=False)])
         gate_layers.extend([
             nn.BatchNorm1d(gate_window, affine=True),
             Swish(num_parameters=gate_window, init=1.0),
+            nn.Dropout(gate_dropout),
             nn.Linear(gate_window, gate_window, bias=True),
             nn.Softmax(dim=1)])  
         self.gate_weights = nn.Sequential(*gate_layers)
@@ -247,12 +251,14 @@ class ExLayers(nn.Module):
             intensity_layers.extend([
                 nn.BatchNorm1d(n_channels, affine=True),
                 Swish(num_parameters=n_channels, init=1.0),
+                nn.Dropout1d(ex_dropout),
                 nn.Conv1d(n_channels, n_channels, kernel_size=hidden_kernel_size, bias=False,
                           padding=self.padding, padding_mode=self.padding_mode)])
         if n_exlayers >= 2:
             intensity_layers.extend([
                 nn.BatchNorm1d(n_channels, affine=True),
                 Swish(num_parameters=n_channels, init=1.0),
+                nn.Dropout1d(ex_dropout),
                 nn.Conv1d(n_channels, 1, kernel_size=hidden_kernel_size, bias=True,
                           padding=self.padding, padding_mode=self.padding_mode)])
         if last_layer_activation:
