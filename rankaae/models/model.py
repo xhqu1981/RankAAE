@@ -295,13 +295,16 @@ class ExEncoder(nn.Module):
                  hidden_kernel_size=3,
                  last_layer_activation='Softplus',
                  padding_mode='stretch',
-                 energy_noise=0.1):
+                 energy_noise=0.1,
+                 ex_dropout=0.05,
+                 gate_dropout=0.05):
         super(ExEncoder, self).__init__()
         self.ex_layers = ExLayers(dim_in=dim_in, dim_out=enclosing_encoder.dim_in,
             gate_window=gate_window, n_exlayers=n_exlayers, n_gate_layers=n_gate_layers, 
             n_channels=n_channels, hidden_kernel_size=hidden_kernel_size, 
             last_layer_activation=last_layer_activation,
-            padding_mode=padding_mode, energy_noise=energy_noise)
+            padding_mode=padding_mode, energy_noise=energy_noise,
+            ex_dropout=ex_dropout, gate_dropout=gate_dropout)
         self.enclosing_encoder = enclosing_encoder
 
     def forward(self, spec):
@@ -324,13 +327,16 @@ class ExDecoder(nn.Module):
                  hidden_kernel_size=3,
                  last_layer_activation='Softplus',
                  padding_mode='stretch',
-                 energy_noise=0.1):
+                 energy_noise=0.1,
+                 ex_dropout=0.05,
+                 gate_dropout=0.05):
         super(ExDecoder, self).__init__()
         self.ex_layers = ExLayers(dim_in=enclosing_decoder.dim_out, dim_out=dim_out,
             gate_window=gate_window, n_exlayers=n_exlayers, n_gate_layers=n_gate_layers, 
             n_channels=n_channels, hidden_kernel_size=hidden_kernel_size,
             last_layer_activation=last_layer_activation,
-            padding_mode=padding_mode, energy_noise=energy_noise)
+            padding_mode=padding_mode, energy_noise=energy_noise,
+            ex_dropout=ex_dropout, gate_dropout=gate_dropout)
         self.enclosing_decoder = enclosing_decoder
         self.nstyle = enclosing_decoder.nstyle
 
