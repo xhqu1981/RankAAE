@@ -202,7 +202,9 @@ class ExLayers(nn.Module):
                  padding_mode='stretch',
                  energy_noise=0.1,
                  ex_dropout=0.05,
-                 gate_dropout=0.05):
+                 gate_dropout=0.05,
+                 no_softmax_in_attention=True,
+                 no_ex_batchnorm=False):
         super(ExLayers, self).__init__()
 
         if padding_mode == 'stretch':
@@ -223,17 +225,20 @@ class ExLayers(nn.Module):
         gate_layers = [nn.Linear(1, gate_window, bias=False)]
         assert n_gate_layers >= 2
         for _ in range(n_gate_layers-2):
+            if not no_ex_batchnorm:
+                gate_layers.append(nn.BatchNorm1d(gate_window, affine=True))
             gate_layers.extend([
-                nn.BatchNorm1d(gate_window, affine=True),
                 Swish(num_parameters=gate_window, init=1.0),
                 nn.Dropout(gate_dropout),
-                nn.Linear(gate_window, gate_window, bias=False)])
+                nn.Linear(gate_window, gate_window, bias=no_ex_batchnorm)])
+        if not no_ex_batchnorm:
+            gate_layers.append(nn.BatchNorm1d(gate_window, affine=True))
         gate_layers.extend([
-            nn.BatchNorm1d(gate_window, affine=True),
             Swish(num_parameters=gate_window, init=1.0),
             nn.Dropout(gate_dropout),
-            nn.Linear(gate_window, gate_window, bias=True),
-            nn.Softmax(dim=1)])  
+            nn.Linear(gate_window, gate_window, bias=no_ex_batchnorm)])  
+        if not no_softmax_in_attention:
+            gate_layers.append(nn.Softmax(dim=1))
         self.gate_weights = nn.Sequential(*gate_layers)
         uw = torch.eye(gate_window, dtype=torch.float32, requires_grad=False)[:, None, :]
         self.register_buffer('upend_weights', uw)
@@ -248,18 +253,22 @@ class ExLayers(nn.Module):
                 nn.Conv1d(1, n_channels, kernel_size=hidden_kernel_size, bias=False,
                           padding=self.padding, padding_mode=self.padding_mode)]
         for _ in range(n_exlayers - 2):
+            if not no_ex_batchnorm:
+                intensity_layers.append(nn.BatchNorm1d(n_channels, affine=True))
             intensity_layers.extend([
-                nn.BatchNorm1d(n_channels, affine=True),
                 Swish(num_parameters=n_channels, init=1.0),
                 nn.Dropout1d(ex_dropout),
-                nn.Conv1d(n_channels, n_channels, kernel_size=hidden_kernel_size, bias=False,
+                nn.Conv1d(n_channels, n_channels, kernel_size=hidden_kernel_size, 
+                          bias=no_ex_batchnorm,
                           padding=self.padding, padding_mode=self.padding_mode)])
         if n_exlayers >= 2:
+            if not no_ex_batchnorm:
+                intensity_layers.append(nn.BatchNorm1d(n_channels, affine=True))
             intensity_layers.extend([
-                nn.BatchNorm1d(n_channels, affine=True),
                 Swish(num_parameters=n_channels, init=1.0),
                 nn.Dropout1d(ex_dropout),
-                nn.Conv1d(n_channels, 1, kernel_size=hidden_kernel_size, bias=True,
+                nn.Conv1d(n_channels, 1, kernel_size=hidden_kernel_size, 
+                          bias=no_ex_batchnorm,
                           padding=self.padding, padding_mode=self.padding_mode)])
         if last_layer_activation:
             ll_act = build_activation_function(1, last_layer_activation)
@@ -297,14 +306,18 @@ class ExEncoder(nn.Module):
                  padding_mode='stretch',
                  energy_noise=0.1,
                  ex_dropout=0.05,
-                 gate_dropout=0.05):
+                 gate_dropout=0.05,
+                 no_softmax_in_attention=True,
+                 no_ex_batchnorm=False):
         super(ExEncoder, self).__init__()
         self.ex_layers = ExLayers(dim_in=dim_in, dim_out=enclosing_encoder.dim_in,
             gate_window=gate_window, n_exlayers=n_exlayers, n_gate_layers=n_gate_layers, 
             n_channels=n_channels, hidden_kernel_size=hidden_kernel_size, 
             last_layer_activation=last_layer_activation,
             padding_mode=padding_mode, energy_noise=energy_noise,
-            ex_dropout=ex_dropout, gate_dropout=gate_dropout)
+            ex_dropout=ex_dropout, gate_dropout=gate_dropout,
+            no_softmax_in_attention=no_softmax_in_attention,
+            no_ex_batchnorm=no_ex_batchnorm)
         self.enclosing_encoder = enclosing_encoder
 
     def forward(self, spec):
@@ -329,14 +342,18 @@ class ExDecoder(nn.Module):
                  padding_mode='stretch',
                  energy_noise=0.1,
                  ex_dropout=0.05,
-                 gate_dropout=0.05):
+                 gate_dropout=0.05,
+                 no_softmax_in_attention=True,
+                 no_ex_batchnorm=False):
         super(ExDecoder, self).__init__()
         self.ex_layers = ExLayers(dim_in=enclosing_decoder.dim_out, dim_out=dim_out,
             gate_window=gate_window, n_exlayers=n_exlayers, n_gate_layers=n_gate_layers, 
             n_channels=n_channels, hidden_kernel_size=hidden_kernel_size,
             last_layer_activation=last_layer_activation,
             padding_mode=padding_mode, energy_noise=energy_noise,
-            ex_dropout=ex_dropout, gate_dropout=gate_dropout)
+            ex_dropout=ex_dropout, gate_dropout=gate_dropout,
+            no_softmax_in_attention=no_softmax_in_attention,
+            no_ex_batchnorm=no_ex_batchnorm)
         self.enclosing_decoder = enclosing_decoder
         self.nstyle = enclosing_decoder.nstyle
 

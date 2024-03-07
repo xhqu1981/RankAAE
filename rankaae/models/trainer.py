@@ -555,7 +555,9 @@ class Trainer:
                                 padding_mode=p.get('padding_mode', 'stretch'),
                                 energy_noise=p.get('energy_noise', 0.1),
                                 ex_dropout=p.get('ex_dropout', 0.05),
-                                gate_dropout=p.get('gate_dropout',0.05))
+                                gate_dropout=p.get('gate_dropout', 0.05),
+                                no_softmax_in_attention=p.get('no_softmax_in_attention', True),
+                                no_ex_batchnorm=p.get('no_ex_batchnorm', False))
             decoder = ExDecoder(p.dim_out, enclosing_decoder=mt['Decoder'],
                                 gate_window=p.get('gate_window', 13),
                                 n_exlayers=p.get('n_exlayers', 1),
@@ -566,7 +568,9 @@ class Trainer:
                                 padding_mode=p.get('padding_mode', 'stretch'),
                                 energy_noise=p.get('energy_noise', 0.1),
                                 ex_dropout=p.get('ex_dropout', 0.05),
-                                gate_dropout=p.get('gate_dropout',0.05))
+                                gate_dropout=p.get('gate_dropout',0.05),
+                                no_softmax_in_attention=p.get('no_softmax_in_attention', True),
+                                no_ex_batchnorm=p.get('no_ex_batchnorm', False))
             discriminator = mt['Style Discriminator']
         else:
             # Generate encoder, decoder and discriminator
