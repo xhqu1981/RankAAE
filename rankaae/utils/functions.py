@@ -234,13 +234,14 @@ def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder,
             if isinstance(m, nn.Conv1d):
                 smooth_list.append(x_spec)
         smooth_list.pop(-1)
-        gaussian_smoothing = GaussianSmoothing(
-            channels=1, kernel_size=gs_kernel_size, sigma=3.0, dim=1,
-            device = device
-        )
-        padding4smooth = nn.ReplicationPad1d(padding=(gs_kernel_size - 1)//2).to(device)
+        
         smooth_loss_train = 0.0
         for spec_out in smooth_list:
+            gaussian_smoothing = GaussianSmoothing(
+                channels=spec_out.size(1), kernel_size=gs_kernel_size, sigma=3.0, dim=1,
+                device = device
+            )
+            padding4smooth = nn.ReplicationPad1d(padding=(gs_kernel_size - 1)//2).to(device)
             spec_out_padded = padding4smooth(spec_out)
             spec_smoothed = gaussian_smoothing(spec_out_padded).detach()
             smooth_loss_train = smooth_loss_train + mse_loss(spec_out, spec_smoothed)
