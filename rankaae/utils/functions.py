@@ -219,18 +219,21 @@ def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder,
                 x_pe = m(x_pe)
                 if isinstance(m, nn.Linear):
                     smooth_list.append(x_pe.T[None, ...])
+            smooth_list.pop(-1)
         x_spec = innner_spec_sample
         x_spec = decoder.ex_layers.pad_spectra(x_spec)
         for m in decoder.ex_layers.intensity_adjuster:
             x_spec = m(x_spec)
             if isinstance(m, nn.Conv1d):
                 smooth_list.append(x_spec)
+        smooth_list.pop(-1)
         x_spec = decoder.ex_layers(innner_spec_sample)
         x_spec = encoder.ex_layers.pad_spectra(x_spec)
         for m in encoder.ex_layers.intensity_adjuster:
             x_spec = m(x_spec)
             if isinstance(m, nn.Conv1d):
                 smooth_list.append(x_spec)
+        smooth_list.pop(-1)
         gaussian_smoothing = GaussianSmoothing(
             channels=1, kernel_size=gs_kernel_size, sigma=3.0, dim=1,
             device = device
