@@ -284,14 +284,16 @@ class Trainer:
                 device=self.device
             )
 
-            mutual_info_loss_val =  mutual_info_loss(
-                self.z_sample_batch_size, self.nstyle,
-                encoder=self.encoder, 
-                decoder=self.decoder, 
-                n_aux=n_aux,
-                mse_loss=mse_loss, 
-                device=self.device
-            )
+            if self.optimizers["mutual_info"] is not None:
+                mutual_info_loss_val =  mutual_info_loss(
+                    self.z_sample_batch_size, self.nstyle,
+                    encoder=self.encoder, 
+                    decoder=self.decoder, 
+                    n_aux=n_aux,
+                    mse_loss=mse_loss, 
+                    device=self.device)
+            else:
+                mutual_info_loss_train = torch.tensor(0.0)
 
             if self.gradient_reversal and self.optimizers["adversarial"] is not None:
                 dis_loss_val = adversarial_loss(
@@ -359,7 +361,8 @@ class Trainer:
             
             combined_metric = (np.array(self.metric_weights) * np.array(metrics)).sum()
             if isinstance(self.encoder, ExEncoder):
-                combined_metric = -aux_loss_val
+                combined_metric = [-recon_loss_val.item(), -mutual_info_loss_val.item(), 
+                                   -exscf_loss_val.item(), -l1_loss.item()]
 
             if combined_metric > best_combined_metric:
                 best_combined_metric = combined_metric
