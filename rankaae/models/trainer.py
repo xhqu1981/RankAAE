@@ -232,6 +232,8 @@ class Trainer:
                     self.zerograd()
                     exscf_loss_train = exscf_loss(
                         self.z_sample_batch_size, self.nstyle, self.encoder, self.decoder,
+                        gs_kernel_size=self.gau_kernel_size, 
+                        layered_smooth=self.__dict__.get('layered_smooth', False),
                         mse_loss=mse_loss, device=self.device)
                     exscf_loss_train.backward()
                     self.optimizers["exscf"].step()
@@ -320,6 +322,8 @@ class Trainer:
             if self.optimizers["exscf"] is not None:
                 exscf_loss_val = exscf_loss(
                     self.z_sample_batch_size, self.nstyle, self.encoder, self.decoder,
+                    gs_kernel_size=self.gau_kernel_size, 
+                    layered_smooth=self.__dict__.get('layered_smooth', False),
                     mse_loss=mse_loss, device=self.device)
             else:
                 exscf_loss_val = torch.tensor(0.0)
