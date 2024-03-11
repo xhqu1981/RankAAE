@@ -222,14 +222,14 @@ def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder,
             smooth_list.pop(-1)
         x_spec = innner_spec_sample
         x_spec = decoder.ex_layers.pad_spectra(x_spec)
-        for m in decoder.ex_layers.intensity_adjuster:
+        for m in decoder.ex_layers.intensity_adjuster.main.children():
             x_spec = m(x_spec)
             if isinstance(m, nn.Conv1d):
                 smooth_list.append(x_spec)
         smooth_list.pop(-1)
         x_spec = decoder.ex_layers(innner_spec_sample)
         x_spec = encoder.ex_layers.pad_spectra(x_spec)
-        for m in encoder.ex_layers.intensity_adjuster:
+        for m in encoder.ex_layers.intensity_adjuster.main.children():
             x_spec = m(x_spec)
             if isinstance(m, nn.Conv1d):
                 smooth_list.append(x_spec)
