@@ -293,7 +293,7 @@ class Trainer:
                     mse_loss=mse_loss, 
                     device=self.device)
             else:
-                mutual_info_loss_train = torch.tensor(0.0)
+                mutual_info_loss_val = torch.tensor(0.0)
 
             if self.gradient_reversal and self.optimizers["adversarial"] is not None:
                 dis_loss_val = adversarial_loss(
@@ -361,8 +361,8 @@ class Trainer:
             
             combined_metric = (np.array(self.metric_weights) * np.array(metrics)).sum()
             if isinstance(self.encoder, ExEncoder):
-                combined_metric = [-recon_loss_val.item(), -mutual_info_loss_val.item(), 
-                                   -exscf_loss_val.item(), -l1_loss.item()]
+                combined_metric = sum([-recon_loss_val.item(), -mutual_info_loss_val.item(), 
+                                       -exscf_loss_val.item(), -l1_loss.item()])
 
             if combined_metric > best_combined_metric:
                 best_combined_metric = combined_metric
