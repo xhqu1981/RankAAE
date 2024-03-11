@@ -215,14 +215,14 @@ def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder,
         smooth_list = [innner_spec_reconn[:, None, :]]
         for model in [decoder.ex_layers, encoder.ex_layers]:
             x_pe = model.position_embedding
-            for m in model.gate_weights.main.children():
+            for m in model.gate_weights.children():
                 x_pe = m(x_pe)
                 if isinstance(m, nn.Linear):
                     smooth_list.append(x_pe.T[None, ...])
             smooth_list.pop(-1)
         x_spec = innner_spec_sample
         x_spec = decoder.ex_layers.pad_spectra(x_spec)
-        for m in decoder.ex_layers.intensity_adjuster.main.children():
+        for m in decoder.ex_layers.intensity_adjuster.children():
             x_spec = m(x_spec)
             if isinstance(m, nn.Conv1d):
                 smooth_list.append(x_spec)
