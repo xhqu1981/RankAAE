@@ -194,7 +194,8 @@ def mutual_info_loss(batch_size, nstyle, encoder, decoder, n_aux, mse_loss=None,
     return loss
 
 
-def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder, mse_loss=None, device=None):
+def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder, 
+               gs_kernel_size, layered_smooth=False, mse_loss=None, device=None):
     """
     Sample latent space, reconstruct spectra and feed back to encoder to reconstruct latent space.
     Return the loss between the sampled and reconstructed latent spacc.
@@ -208,8 +209,41 @@ def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder, mse
     z_sample = torch.randn(batch_size, n_styles, requires_grad=False, device=device)
     innner_spec_sample = decoder.enclosing_decoder(z_sample).detach()
     innner_spec_reconn = encoder.ex_layers(decoder.ex_layers(innner_spec_sample))
-    loss = mse_loss(innner_spec_reconn, innner_spec_sample)
-    return loss
+    ex_loss = mse_loss(innner_spec_reconn, innner_spec_sample)
+
+    if layered_smooth:
+        smooth_list = [innner_spec_reconn[:, None, :]]
+        for model in [decoder.ex_layers, encoder.ex_layers]:
+            x_pe = model.position_embedding
+            for m in model.gate_weights.main.children():
+                x_pe = m(x_pe)
+                if isinstance(m, nn.Linear):
+                    smooth_list.append(x_pe.T[None, ...])
+        x_spec = innner_spec_sample
+        x_spec = decoder.ex_layers.pad_spectra(x_spec)
+        for m in decoder.ex_layers.intensity_adjuster:
+            x_spec = m(x_spec)
+            if isinstance(m, nn.Conv1d):
+                smooth_list.append(x_spec)
+        x_spec = decoder.ex_layers(innner_spec_sample)
+        x_spec = encoder.ex_layers.pad_spectra(x_spec)
+        for m in encoder.ex_layers.intensity_adjuster:
+            x_spec = m(x_spec)
+            if isinstance(m, nn.Conv1d):
+                smooth_list.append(x_spec)
+        gaussian_smoothing = GaussianSmoothing(
+            channels=1, kernel_size=gs_kernel_size, sigma=3.0, dim=1,
+            device = device
+        )
+        padding4smooth = nn.ReplicationPad1d(padding=(gs_kernel_size - 1)//2).to(device)
+        smooth_loss_train = 0.0
+        for spec_out in smooth_list:
+            spec_out_padded = padding4smooth(spec_out)
+            spec_smoothed = gaussian_smoothing(spec_out_padded).detach()
+            smooth_loss_train = smooth_loss_train + mse_loss(spec_out, spec_smoothed)
+        ex_loss = ex_loss + smooth_loss_train
+
+    return ex_loss
 
 def smoothness_loss(batch_size, nstyle, decoder, gs_kernel_size, mse_loss=None, device=None, layered_smooth=False, encoder=None):
     """

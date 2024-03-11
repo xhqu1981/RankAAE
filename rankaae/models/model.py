@@ -267,11 +267,7 @@ class ExLayers(nn.Module):
         self.intensity_adjuster = nn.Sequential(*intensity_layers) 
 
     def forward(self, spec):
-        spec = nn.functional.interpolate(spec[:, None, :], 
-            scale_factor=self.scale_factor, mode='linear', align_corners=True)
-        if self.padding == 'same':
-            pm = self.padding_mode.replace('zeros', 'constant')
-            spec = F.pad(spec, self.num_pads, mode=pm)
+        spec = self.pad_spectra(spec)
         spec = self.intensity_adjuster(spec)
         spec = F.conv1d(spec, self.upend_weights)
         if self.training:
@@ -281,6 +277,14 @@ class ExLayers(nn.Module):
         sel_weights = self.gate_weights(pe).T[None, ...]
         spec = (spec * sel_weights).sum(dim=1)
         spec = spec.squeeze(dim=1)
+        return spec
+
+    def pad_spectra(self, spec):
+        spec = nn.functional.interpolate(spec[:, None, :], 
+            scale_factor=self.scale_factor, mode='linear', align_corners=True)
+        if self.padding == 'same':
+            pm = self.padding_mode.replace('zeros', 'constant')
+            spec = F.pad(spec, self.num_pads, mode=pm)
         return spec
 
 
