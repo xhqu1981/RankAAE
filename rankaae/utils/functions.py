@@ -211,7 +211,7 @@ def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder,
     innner_spec_reconn = encoder.ex_layers(decoder.ex_layers(innner_spec_sample))
     ex_loss = mse_loss(innner_spec_reconn, innner_spec_sample)
 
-    if layered_smooth:
+    if bool(layered_smooth):
         smooth_list = [innner_spec_reconn[:, None, :]]
         for model in [decoder.ex_layers, encoder.ex_layers]:
             x_pe = model.position_embedding
@@ -245,7 +245,10 @@ def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder,
             spec_out_padded = padding4smooth(spec_out)
             spec_smoothed = gaussian_smoothing(spec_out_padded).detach()
             smooth_loss_train = smooth_loss_train + mse_loss(spec_out, spec_smoothed)
-        ex_loss = ex_loss + smooth_loss_train
+        if isinstance(layered_smooth, float):
+            ex_loss = ex_loss + smooth_loss_train * layered_smooth
+        else:
+            ex_loss = ex_loss + smooth_loss_train
 
     return ex_loss
 
