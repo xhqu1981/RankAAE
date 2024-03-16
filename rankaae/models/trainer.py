@@ -535,7 +535,7 @@ class Trainer:
                     cooldown=0, threshold=0.01,verbose=self.verbose)
             elif sch_name == 'CyclicLR':
                 return CyclicLR(optimizer, base_lr=optimizer.param_groups[0]['lr']*1.0E-3, 
-                                max_lr=optimizer.param_groups[0]['lr'], 
+                                max_lr=optimizer.param_groups[0]['lr'], cycle_momentum=False,
                                 step_size_up=self.sch_patience, step_size_down=self.sch_patience)
             elif sch_name == 'CosineAnnealingLR':
                 return CosineAnnealingLR(optimizer, T_max=self.sch_patience)
