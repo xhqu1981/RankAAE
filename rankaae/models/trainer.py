@@ -541,6 +541,8 @@ class Trainer:
                 return CosineAnnealingLR(optimizer, T_max=self.sch_patience)
             elif sch_name == 'CosineAnnealingWarmRestarts':
                 return CosineAnnealingWarmRestarts(optimizer, T_0=self.sch_patience)
+            else:
+                raise ValueError(f"Schedule {sch_name} is not recognized")
                 
         self.schedulers = {name:create_scheduler(optimizer)
             for name, optimizer in self.optimizers.items() if optimizer is not None}
