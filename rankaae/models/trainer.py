@@ -56,6 +56,12 @@ class Trainer:
         self.encoder = encoder.to(self.device)
         self.decoder = decoder.to(self.device)
         self.discriminator = discriminator.to(self.device)
+        if self.__dict__.get('swa_start', -1) > 0:
+            self.swa_encoder = torch.optim.swa_utils.AveragedModel(self.encoder)
+            self.swa_decoder = torch.optim.swa_utils.AveragedModel(self.decoder)
+        else:
+            self.swa_encoder = None
+            self.swa_decoder = None
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.verbose = verbose
@@ -369,16 +375,27 @@ class Trainer:
                 best_combined_metric = combined_metric
                 best_chpt_file = f"{chkpt_dir}/epoch_{epoch:06d}_loss_{combined_metric:07.6g}.pt"
                 torch.save(model_dict, best_chpt_file)
-
-            for _, sch in self.schedulers.items():
-                if isinstance(sch, ReduceLROnPlateau):
-                    sch.step(combined_metric)
-                else:
+            if self.__dict__.get('swa_start', -1) < 0 or epoch < self.__dict__.get('swa_start', -1):
+                for _, sch in self.schedulers.items():
+                    if isinstance(sch, ReduceLROnPlateau):
+                        sch.step(combined_metric)
+                    else:
+                        sch.step()
+            else:
+                self.swa_encoder.update_parameters(self.swa_encoder)
+                self.swa_decoder.update_parameters(self.swa_decoder)
+                for _, sch in self.swa_schedulers.items():
                     sch.step()
 
             if callback is not None:
                 callback(epoch, metrics)
-            
+
+        if self.__dict__.get('swa_start', -1) > 0:        
+            torch.optim.swa_utils.update_bn(self.train_loader, self.encoder)
+            torch.optim.swa_utils.update_bn(self.train_loader, self.decoder)
+            model_dict['SWA_Encoder'] = self.swa_encoder
+            model_dict['SWA_Decoder'] = self.swa_encoder
+
         # save the final model
         torch.save(model_dict, f'{self.work_dir}/final.pt')
 
@@ -525,10 +542,11 @@ class Trainer:
             elif sch_name == 'CosineAnnealingWarmRestarts':
                 return CosineAnnealingWarmRestarts(optimizer, T_0=self.sch_patience)
                 
-        self.schedulers = {name:
-            create_scheduler(optimizer)
-            for name, optimizer in self.optimizers.items() if optimizer is not None
-        }
+        self.schedulers = {name:create_scheduler(optimizer)
+            for name, optimizer in self.optimizers.items() if optimizer is not None}
+        if self.__dict__.get('swa_start', -1) > 0:
+            self.swa_schedulers = {name: torch.optim.swa_utils.SWALR(optimizer, swa_lr=0.05)
+                for name, optimizer in self.optimizers.items() if optimizer is not None}
 
 
     @classmethod
