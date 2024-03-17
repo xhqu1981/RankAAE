@@ -56,12 +56,6 @@ class Trainer:
         self.encoder = encoder.to(self.device)
         self.decoder = decoder.to(self.device)
         self.discriminator = discriminator.to(self.device)
-        if self.__dict__.get('swa_start', -1) > 0:
-            self.swa_encoder = torch.optim.swa_utils.AveragedModel(self.encoder)
-            self.swa_decoder = torch.optim.swa_utils.AveragedModel(self.decoder)
-        else:
-            self.swa_encoder = None
-            self.swa_decoder = None
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.verbose = verbose
@@ -71,6 +65,12 @@ class Trainer:
         # update name space with config_parameters dictionary
         self.epoch_stop_smooth = 500 # default value in case it's not in fix_config, (to deprecate).
         self.__dict__.update(config_parameters.to_dict())
+        if self.__dict__.get('swa_start', -1) > 0:
+            self.swa_encoder = torch.optim.swa_utils.AveragedModel(self.encoder)
+            self.swa_decoder = torch.optim.swa_utils.AveragedModel(self.decoder)
+        else:
+            self.swa_encoder = None
+            self.swa_decoder = None
         self.load_optimizers()
         self.load_schedulers()
 
