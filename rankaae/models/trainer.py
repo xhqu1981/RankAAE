@@ -393,8 +393,10 @@ class Trainer:
         if self.__dict__.get('swa_start', -1) > 0:        
             torch.optim.swa_utils.update_bn(self.train_loader, self.encoder)
             torch.optim.swa_utils.update_bn(self.train_loader, self.decoder)
-            model_dict['SWA_Encoder'] = self.swa_encoder
-            model_dict['SWA_Decoder'] = self.swa_encoder
+            model_dict['Encoder'] = self.swa_encoder
+            model_dict['Decoder'] = self.swa_encoder
+            model_dict['NonSWA_Encoder'] = self.encoder
+            model_dict['NonsWA_Decoder'] = self.encoder
 
         # save the final model
         torch.save(model_dict, f'{self.work_dir}/final.pt')
