@@ -3,6 +3,7 @@ import os
 import logging
 import itertools
 import socket
+from collections import OrderedDict
 import seaborn as sns
 import numpy as np
 import matplotlib.pyplot as plt
@@ -66,11 +67,13 @@ class Trainer:
         self.epoch_stop_smooth = 500 # default value in case it's not in fix_config, (to deprecate).
         self.__dict__.update(config_parameters.to_dict())
         if self.__dict__.get('swa_start', -1) > 0:
-            self.swa_encoder = torch.optim.swa_utils.AveragedModel(self.encoder)
-            self.swa_decoder = torch.optim.swa_utils.AveragedModel(self.decoder)
+            self.orig_ae = nn.Sequential(OrderedDict([
+                ('Encoder', self.encoder),
+                ('Decoder', self.decoder)]))
+            self.swa_ae = torch.optim.swa_utils.AveragedModel(self.orig_ae)
         else:
-            self.swa_encoder = None
-            self.swa_decoder = None
+            self.orig_ae = None
+            self.swa_ae = None
         self.load_optimizers()
         self.load_schedulers()
 
@@ -382,8 +385,7 @@ class Trainer:
                     else:
                         sch.step()
             else:
-                self.swa_encoder.update_parameters(self.encoder)
-                self.swa_decoder.update_parameters(self.decoder)
+                self.swa_ae.update_parameters(self.orig_ae)
                 for _, sch in self.swa_schedulers.items():
                     sch.step()
 
@@ -391,10 +393,9 @@ class Trainer:
                 callback(epoch, metrics)
 
         if self.__dict__.get('swa_start', -1) > 0:        
-            torch.optim.swa_utils.update_bn(self.train_loader, self.swa_encoder, device=self.device)
-            torch.optim.swa_utils.update_bn(self.train_loader, self.swa_decoder, device=self.device)
-            model_dict['Encoder'] = self.swa_encoder.module
-            model_dict['Decoder'] = self.swa_encoder.module
+            torch.optim.swa_utils.update_bn(self.train_loader, self.swa_ae, device=self.device)
+            model_dict['Encoder'] = self.swa_ae.module.get_submodule('Encoder')
+            model_dict['Decoder'] = self.swa_ae.module.get_submodule('Decoder')
             model_dict['NonSWA_Encoder'] = self.encoder
             model_dict['NonsWA_Decoder'] = self.encoder
 
