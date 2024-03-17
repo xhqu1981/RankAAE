@@ -382,8 +382,8 @@ class Trainer:
                     else:
                         sch.step()
             else:
-                self.swa_encoder.update_parameters(self.swa_encoder)
-                self.swa_decoder.update_parameters(self.swa_decoder)
+                self.swa_encoder.update_parameters(self.encoder)
+                self.swa_decoder.update_parameters(self.decoder)
                 for _, sch in self.swa_schedulers.items():
                     sch.step()
 
