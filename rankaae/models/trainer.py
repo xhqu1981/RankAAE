@@ -391,8 +391,8 @@ class Trainer:
                 callback(epoch, metrics)
 
         if self.__dict__.get('swa_start', -1) > 0:        
-            torch.optim.swa_utils.update_bn(self.train_loader, self.encoder)
-            torch.optim.swa_utils.update_bn(self.train_loader, self.decoder)
+            torch.optim.swa_utils.update_bn(self.train_loader, self.swa_encoder)
+            torch.optim.swa_utils.update_bn(self.train_loader, self.swa_decoder)
             model_dict['Encoder'] = self.swa_encoder
             model_dict['Decoder'] = self.swa_encoder
             model_dict['NonSWA_Encoder'] = self.encoder
