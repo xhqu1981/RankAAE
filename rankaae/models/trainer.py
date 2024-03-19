@@ -392,8 +392,9 @@ class Trainer:
                     self.load_optimizers()
                     swa_lr = self.__dict__.get('swa_lr', 5.0) * lr_inflate
                     self.swa_schedulers = {name: torch.optim.swa_utils.SWALR(
-                        optimizer, swa_lr=optimizer.param_groups[0]['lr']*swa_lr)
-                for name, optimizer in self.optimizers.items() if optimizer is not None}
+                            optimizer, swa_lr=optimizer.param_groups[0]['lr']*swa_lr)
+                        for name, optimizer in self.optimizers.items() 
+                        if optimizer is not None}
                 self.swa_ae.update_parameters(self.orig_ae)
                 if  epoch > self.__dict__.get('swa_start', -1):
                     for _, sch in self.swa_schedulers.items():
