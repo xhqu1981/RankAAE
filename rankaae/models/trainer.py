@@ -390,8 +390,9 @@ class Trainer:
                     self.load_optimizers()
                     self.load_schedulers()
                 self.swa_ae.update_parameters(self.orig_ae)
-                for _, sch in self.swa_schedulers.items():
-                    sch.step()
+                if  epoch > self.__dict__.get('swa_start', -1):
+                    for _, sch in self.swa_schedulers.items():
+                        sch.step()
 
             if callback is not None:
                 callback(epoch, metrics)
