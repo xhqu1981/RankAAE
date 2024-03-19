@@ -387,6 +387,7 @@ class Trainer:
             else:
                 if epoch == self.__dict__.get('swa_start', -1):
                     self.optimizer_name = 'SGD'
+                    self.lr_inflate = self.lr_base / 1.0E-10
                     self.lr_base = 1.0E-10
                     self.load_optimizers()
                     self.load_schedulers()
@@ -556,7 +557,7 @@ class Trainer:
         self.schedulers = {name:create_scheduler(optimizer)
             for name, optimizer in self.optimizers.items() if optimizer is not None}
         if self.__dict__.get('swa_start', -1) > 0:
-            swa_lr = self.__dict__.get('swa_lr', 5.0)
+            swa_lr = self.__dict__.get('swa_lr', 5.0) * self.lr_inflate
             self.swa_schedulers = {name: torch.optim.swa_utils.SWALR(
                     optimizer, swa_lr=optimizer.param_groups[0]['lr']*swa_lr)
                 for name, optimizer in self.optimizers.items() if optimizer is not None}
