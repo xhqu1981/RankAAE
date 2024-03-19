@@ -541,9 +541,9 @@ class Trainer:
                                 max_lr=optimizer.param_groups[0]['lr'], cycle_momentum=False,
                                 step_size_up=self.sch_patience, step_size_down=self.sch_patience)
             elif sch_name == 'CosineAnnealingLR':
-                return CosineAnnealingLR(optimizer, T_max=self.sch_patience)
+                return CosineAnnealingLR(optimizer, T_max=self.sch_patience, eta_min=1.0E-8)
             elif sch_name == 'CosineAnnealingWarmRestarts':
-                return CosineAnnealingWarmRestarts(optimizer, T_0=self.sch_patience)
+                return CosineAnnealingWarmRestarts(optimizer, T_0=self.sch_patience, eta_min=1.0E-8)
             else:
                 raise ValueError(f"Schedule {sch_name} is not recognized")
                 
