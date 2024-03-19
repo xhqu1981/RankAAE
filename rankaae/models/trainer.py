@@ -539,7 +539,7 @@ class Trainer:
             elif sch_name == 'CyclicLR':
                 return CyclicLR(optimizer, base_lr=optimizer.param_groups[0]['lr']*1.0E-3, 
                                 max_lr=optimizer.param_groups[0]['lr'], cycle_momentum=False,
-                                step_size_up=self.sch_patience, step_size_down=self.sch_patience)
+                                step_size_up=100, step_size_down=400)
             elif sch_name == 'CosineAnnealingLR':
                 return CosineAnnealingLR(optimizer, T_max=self.sch_patience, eta_min=1.0E-8)
             elif sch_name == 'CosineAnnealingWarmRestarts':
