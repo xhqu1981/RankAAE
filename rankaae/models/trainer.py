@@ -66,13 +66,12 @@ class Trainer:
         # update name space with config_parameters dictionary
         self.epoch_stop_smooth = 500 # default value in case it's not in fix_config, (to deprecate).
         self.__dict__.update(config_parameters.to_dict())
+        self.orig_ae = nn.Sequential(OrderedDict([
+            ('Encoder', self.encoder),
+            ('Decoder', self.decoder)]))
         if self.__dict__.get('swa_start', -1) > 0:
-            self.orig_ae = nn.Sequential(OrderedDict([
-                ('Encoder', self.encoder),
-                ('Decoder', self.decoder)]))
             self.swa_ae = torch.optim.swa_utils.AveragedModel(self.orig_ae)
         else:
-            self.orig_ae = None
             self.swa_ae = None
         self.load_optimizers()
         self.load_schedulers()
@@ -101,11 +100,9 @@ class Trainer:
                 "Val_Recon,Train_Smooth,Val_Smooth,Train_Mutual_Info,Val_Mutual_Info"
         )
         
-        for epoch in range(self.max_epoch):
-            self.encoder.train()
-            self.decoder.train()
+        self.orig_ae.eval()
+        for epoch in range(self.max_epoch): 
             self.discriminator.train()
-
             if self.gradient_reversal:
                 alpha_ = alpha(epoch/self.max_epoch, self.alpha_flat_step, self.alpha_limit)
 
@@ -255,10 +252,11 @@ class Trainer:
                   
                 # Init gradients
                 self.zerograd()
+            # update BN
+            torch.optim.swa_utils.update_bn(self.train_loader, self.orig_ae, device=self.device)   
 
             ### Validation ###
-            self.encoder.eval()
-            self.decoder.eval()
+            self.orig_ae.eval()
             self.discriminator.eval()
             
             spec_in_val, aux_in_val = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))]
