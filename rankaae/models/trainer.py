@@ -395,7 +395,16 @@ class Trainer:
                             optimizer, swa_lr=optimizer.param_groups[0]['lr']*swa_lr)
                         for name, optimizer in self.optimizers.items() 
                         if optimizer is not None}
-                self.swa_ae.update_parameters(self.orig_ae)
+                if epoch == self.max_epoch - 20:
+                    self.swa_schedulers = {name: torch.optim.swa_utils.SWALR(
+                            optimizer, swa_lr=1.0E-10, anneal_epochs=0)
+                        for name, optimizer in self.optimizers.items() 
+                        if optimizer is not None}
+                    # update BN statistics
+                    self.encoder = self.swa_ae.module.get_submodule('Encoder')
+                    self.decoder = self.swa_ae.module.get_submodule('Decoder')
+                if epoch <= self.max_epoch - 20:
+                    self.swa_ae.update_parameters(self.orig_ae)
                 if  epoch > self.__dict__.get('swa_start', -1):
                     for _, sch in self.swa_schedulers.items():
                         sch.step()
@@ -404,11 +413,12 @@ class Trainer:
                 callback(epoch, metrics)
 
         if self.__dict__.get('swa_start', -1) > 0:        
-            torch.optim.swa_utils.update_bn(self.train_loader, self.swa_ae, device=self.device)
+            ## torch.optim.swa_utils.update_bn(self.train_loader, self.swa_ae, device=self.device)
+            ## use very small lr to run over all loss functions instead
             model_dict['Encoder'] = self.swa_ae.module.get_submodule('Encoder')
             model_dict['Decoder'] = self.swa_ae.module.get_submodule('Decoder')
-            model_dict['NonSWA_Encoder'] = self.encoder
-            model_dict['NonsWA_Decoder'] = self.encoder
+            model_dict['NonSWA_Encoder'] = self.orig_ae.module.get_submodule('Encoder')
+            model_dict['NonsWA_Decoder'] = self.orig_ae.module.get_submodule('Decoder')
 
         # save the final model
         torch.save(model_dict, f'{self.work_dir}/final.pt')
