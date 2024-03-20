@@ -417,8 +417,8 @@ class Trainer:
             ## use very small lr to run over all loss functions instead
             model_dict['Encoder'] = self.swa_ae.module.get_submodule('Encoder')
             model_dict['Decoder'] = self.swa_ae.module.get_submodule('Decoder')
-            model_dict['NonSWA_Encoder'] = self.orig_ae.module.get_submodule('Encoder')
-            model_dict['NonsWA_Decoder'] = self.orig_ae.module.get_submodule('Decoder')
+            model_dict['NonSWA_Encoder'] = self.orig_ae.get_submodule('Encoder')
+            model_dict['NonsWA_Decoder'] = self.orig_ae.get_submodule('Decoder')
 
         # save the final model
         torch.save(model_dict, f'{self.work_dir}/final.pt')
