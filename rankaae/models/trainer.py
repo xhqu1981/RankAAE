@@ -102,9 +102,9 @@ class Trainer:
         )
         
         for epoch in range(self.max_epoch):
-            self.encoder.train()
-            self.decoder.train()
-            self.discriminator.train()
+            self.encoder.eval()
+            self.decoder.eval()
+            self.discriminator.eval()
 
             if self.gradient_reversal:
                 alpha_ = alpha(epoch/self.max_epoch, self.alpha_flat_step, self.alpha_limit)
@@ -130,6 +130,7 @@ class Trainer:
                 spec_out = self.decoder(styles) # reconstructed spectra
 
                 # Use gradient reversal method or standard GAN structure
+                self.discriminator.train()
                 if self.gradient_reversal and self.optimizers["adversarial"] is not None:
                     self.zerograd()
                     dis_loss_train = adversarial_loss(
@@ -167,6 +168,7 @@ class Trainer:
                 else:
                     dis_loss_train = torch.tensor(0.0)
                     gen_loss_train = torch.tensor(0.0)
+                self.discriminator.eval()
                 
                 if self.optimizers["correlation"] is not None:
                     # Kendall constraint
@@ -183,6 +185,8 @@ class Trainer:
                     aux_loss_train = torch.tensor(0.0, dtype=torch.float32)
 
                 # Init gradients, reconstruction loss
+                self.encoder.train()
+                self.decoder.train()
                 self.zerograd()
                 spec_out  = self.decoder(self.encoder(spec_in))
                 recon_loss_train = recon_loss(
@@ -192,6 +196,8 @@ class Trainer:
                 )
                 recon_loss_train.backward()
                 self.optimizers["reconstruction"].step()
+                self.encoder.eval()
+                self.decoder.eval()
 
                 # Init gradients, mutual information loss
                 if self.optimizers["mutual_info"] is not None:
@@ -256,11 +262,7 @@ class Trainer:
                 # Init gradients
                 self.zerograd()
 
-            ### Validation ###
-            self.encoder.eval()
-            self.decoder.eval()
-            self.discriminator.eval()
-            
+            ### Validation ###           
             spec_in_val, aux_in_val = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))]
             spec_in_val = spec_in_val.to(self.device)
             z = self.encoder(spec_in_val)
