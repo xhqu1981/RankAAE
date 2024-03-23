@@ -373,7 +373,7 @@ class Trainer:
                 torch.save(model_dict, best_chpt_file)
 
             for _, sch in self.schedulers.items():
-                if isinstance(sch, 'ReduceLROnPlateau'):
+                if isinstance(sch, ReduceLROnPlateau):
                     sch.step(combined_metric)
                 else:
                     sch.step()
