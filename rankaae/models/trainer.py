@@ -373,7 +373,10 @@ class Trainer:
                 torch.save(model_dict, best_chpt_file)
 
             for _, sch in self.schedulers.items():
-                sch.step(combined_metric)
+                if isinstance(sch, 'ReduceLROnPlateau'):
+                    sch.step(combined_metric)
+                else:
+                    sch.step()
 
             if callback is not None:
                 callback(epoch, metrics)
