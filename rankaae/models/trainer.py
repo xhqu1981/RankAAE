@@ -11,7 +11,13 @@ from scipy.stats import shapiro, spearmanr
 import torch
 torch.autograd.set_detect_anomaly(True)
 from torch import nn
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import (
+    ReduceLROnPlateau,
+    CyclicLR,
+    CosineAnnealingLR,
+    CosineAnnealingWarmRestarts,
+    StepLR
+)
 
 from rankaae.models.model import (
     DiscriminatorFC,
@@ -503,14 +509,27 @@ class Trainer:
 
 
     def load_schedulers(self):
-        
-        self.schedulers = {name:
-            ReduceLROnPlateau(
-                optimizer, mode="max", factor=self.sch_factor, patience=self.sch_patience, 
-                cooldown=0, threshold=0.01,verbose=self.verbose
-            ) 
-            for name, optimizer in self.optimizers.items() if optimizer is not None
-        }
+        def create_scheduler(optimizer):
+            sch_name = self.__dict__.get('scheduler', 'ReduceLROnPlateau')
+            if sch_name == 'ReduceLROnPlateau':
+                return ReduceLROnPlateau(
+                    optimizer, mode="max", factor=self.sch_factor, patience=self.sch_patience, 
+                    cooldown=0, threshold=0.01,verbose=self.verbose)
+            elif sch_name == 'CyclicLR':
+                return CyclicLR(optimizer, base_lr=optimizer.param_groups[0]['lr']*1.0E-3, 
+                                max_lr=optimizer.param_groups[0]['lr'], cycle_momentum=False,
+                                step_size_up=self.sch_patience, step_size_down=self.sch_patience)
+            elif sch_name == 'CosineAnnealingLR':
+                return CosineAnnealingLR(optimizer, T_max=self.sch_patience, eta_min=1.0E-8)
+            elif sch_name == 'CosineAnnealingWarmRestarts':
+                return CosineAnnealingWarmRestarts(optimizer, T_0=self.sch_patience, eta_min=1.0E-8)
+            elif sch_name == 'StepLR':
+                return StepLR(optimizer, step_size=self.sch_patience, gamma=self.sch_factor)
+            else:
+                raise ValueError(f"Schedule {sch_name} is not recognized")
+                
+        self.schedulers = {name:create_scheduler(optimizer)
+            for name, optimizer in self.optimizers.items() if optimizer is not None}
 
 
     @classmethod
