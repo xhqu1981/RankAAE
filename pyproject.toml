@@ -29,7 +29,8 @@ dependencies = [
   "plotly~=5.9.0",
   "pandas~=1.5.3",
   "ipyparallel~=8.6.1",
-  "monty~=2023.5.8"
+  "monty~=2023.5.8",
+  "scikit-learn~=1.2.2"
 ]
 
 [project.scripts]
