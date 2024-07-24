@@ -7,17 +7,40 @@ import torch.nn.functional as F
 
 
 class Swish(nn.Module):
-    def __init__(self, num_parameters, init=1.0):
+    def __init__(self, num_parameters, init=1.0, dtype=torch.float32):
         super(Swish, self).__init__()
         self.beta = nn.Parameter(
-            torch.full((num_parameters,), fill_value=(1.0-init), dtype=torch.float32), 
+            torch.full((num_parameters,), fill_value=(init - 1.0), dtype=dtype), 
             requires_grad=True)
+        self.init_value = init
     
     def forward(self, x):
         new_shape = [1, self.beta.size(0)] + [1] * (len(x.size()) - 2)
-        ex_beta = 1.0 - self.beta.reshape(new_shape)
+        ex_beta = 1.0 + self.beta.reshape(new_shape)
         x = x * F.sigmoid(ex_beta * x)
         return x
+    
+    def extra_repr(self):
+        s = f'{self.beta.size(0)}, init={self.init_value}'
+        return s
+    
+
+def activation_function(name, num_parameters, init):
+    act_cls_dict = {"ReLU": nn.ReLU, "PReLU": nn.PReLU, "Sigmoid": nn.Sigmoid,
+                    "Swish": Swish, "Hardswish": nn.Hardswish, "ReLU6": nn.ReLU6,
+                    "SiLU": nn.SiLU, "Mish": nn.Mish, "Hardsigmoid": nn.Hardsigmoid,
+                    "Softmax": nn.Softmax, "Softplus": nn.Softplus}
+    act_cls = act_cls_dict[name]
+    params = {}
+    if name in ["PReLU", "Swish"]:
+        params["num_parameters"] = num_parameters
+        params["init"] = int
+    if name in ["Softmax"]:
+        params["dim"] = 1
+    if name == 'Softplus':
+        params["beta"] = 2
+    act_obj = act_cls(**params)
+    return act_obj
 
 
 class GradientReversalLayer(Function):
@@ -112,11 +135,11 @@ class FCEncoder(nn.Module):
         for _ in range(n_layers-2):
             sequential_layers.extend([
                 nn.BatchNorm1d(hidden_size, affine=True),
-                Swish(num_parameters=hidden_size, init=1.0),
+                activation_function(num_parameters=hidden_size, init=1.0),
                 nn.Linear(hidden_size, hidden_size, bias=False)])
         sequential_layers.extend([ # last layer
             nn.BatchNorm1d(hidden_size, affine=True),
-            Swish(num_parameters=hidden_size, init=1.0),
+            activation_function(num_parameters=hidden_size, init=1.0),
             nn.Linear(hidden_size, nstyle, bias=False),
             nn.BatchNorm1d(nstyle, affine=False)])
             # add this batchnorm layer to make sure the output is standardized.
@@ -133,22 +156,6 @@ class FCEncoder(nn.Module):
         return self.parameters()
 
 
-def build_activation_function(num_parameters, activation_name):
-        if activation_name == 'ReLU':
-            ll_act = nn.ReLU()
-        elif activation_name == 'PReLU':
-            ll_act = nn.PReLU(num_parameters=num_parameters)
-        elif activation_name == 'Swish':
-            ll_act = Swish(num_parameters=num_parameters)
-        elif activation_name == 'Softplus':
-            ll_act = nn.Softplus(beta=2)
-        else:
-            raise ValueError(
-                f"Unknow activation function \"{activation_name}\", please use one available in Pytorch")
-                
-        return ll_act
-
-
 class FCDecoder(nn.Module):
 
     def __init__(
@@ -162,17 +169,17 @@ class FCDecoder(nn.Module):
     ):
         super(FCDecoder, self).__init__()
 
-        ll_act = build_activation_function(dim_out, last_layer_activation)
+        ll_act = activation_function(last_layer_activation, num_parameters=dim_out)
 
         sequential_layers = [nn.Linear(nstyle, hidden_size, bias=False)] # the first layer.
         for _ in range(n_layers-2):
             sequential_layers.extend([ # the n layers in the middle
                 nn.BatchNorm1d(hidden_size, affine=True),
-                Swish(num_parameters=hidden_size, init=1.0),
+                activation_function(num_parameters=hidden_size, init=1.0),
                 nn.Linear(hidden_size, hidden_size, bias=False)])
         sequential_layers.extend([ # the last layer
             nn.BatchNorm1d(hidden_size, affine=True),
-            Swish(num_parameters=hidden_size, init=1.0),
+            activation_function(num_parameters=hidden_size, init=1.0),
             nn.Linear(hidden_size, dim_out),
             ll_act])  
         self.main = nn.Sequential(*sequential_layers)
@@ -227,12 +234,12 @@ class ExLayers(nn.Module):
         for _ in range(n_gate_layers-2):
             gate_layers.extend([
                 nn.BatchNorm1d(gate_window, affine=True),
-                Swish(num_parameters=gate_window, init=1.0),
+                activation_function(num_parameters=gate_window, init=1.0),
                 nn.Dropout(gate_dropout),
                 nn.Linear(gate_window, gate_window, bias=False)])
         gate_layers.extend([
             nn.BatchNorm1d(gate_window, affine=True),
-            Swish(num_parameters=gate_window, init=1.0),
+            activation_function(num_parameters=gate_window, init=1.0),
             nn.Dropout(gate_dropout),
             nn.Linear(gate_window, gate_window, bias=True),
             nn.Softmax(dim=1)])  
@@ -254,14 +261,14 @@ class ExLayers(nn.Module):
         for _ in range(n_exlayers - 2):
             intensity_layers.extend([
                 nn.BatchNorm1d(n_channels, affine=True),
-                Swish(num_parameters=n_channels, init=1.0),
+                activation_function(num_parameters=n_channels, init=1.0),
                 nn.Dropout1d(ex_dropout),
                 nn.Conv1d(n_channels, n_channels, kernel_size=hidden_kernel_size, bias=False,
                           padding=self.padding, padding_mode=self.padding_mode)])
         if n_exlayers >= 2:
             intensity_layers.extend([
                 nn.BatchNorm1d(n_channels, affine=True),
-                Swish(num_parameters=n_channels, init=1.0),
+                activation_function(num_parameters=n_channels, init=1.0),
                 nn.Dropout1d(ex_dropout),
                 nn.Conv1d(n_channels, 1, kernel_size=hidden_kernel_size, bias=True,
                           padding=self.padding, padding_mode=self.padding_mode)])
@@ -371,11 +378,11 @@ class DiscriminatorFC(nn.Module):
         for _ in range(layers-2):
             sequential_layers.extend([
                 nn.BatchNorm1d(hiden_size, affine=True),
-                Swish(num_parameters=hiden_size, init=1.0),
+                activation_function(num_parameters=hiden_size, init=1.0),
                 nn.Linear(hiden_size, hiden_size, bias=False)])
         sequential_layers.extend([
             nn.BatchNorm1d(hiden_size, affine=True),
-            Swish(num_parameters=hiden_size, init=1.0),
+            activation_function(num_parameters=hiden_size, init=1.0),
             nn.Linear(hiden_size, 1, bias=True)])
         self.main = nn.Sequential(*sequential_layers)
         
