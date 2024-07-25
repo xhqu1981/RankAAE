@@ -132,17 +132,13 @@ class FCEncoder(nn.Module):
         super(FCEncoder, self).__init__()
 
         self.dim_in = dim_in
-        sequential_layers = [nn.Linear(dim_in, hidden_size, False)] # first layer
-        for _ in range(n_layers-2):
+        sequential_layers = [nn.Linear(dim_in, hidden_size, bias=True)] # first layer
+        for _ in range(n_layers-1):
             sequential_layers.extend([
-                nn.BatchNorm1d(hidden_size, affine=True),
                 activation_function(activation, num_parameters=hidden_size, init=1.0),
-                nn.Linear(hidden_size, hidden_size, bias=False)])
-        sequential_layers.extend([ # last layer
-            nn.BatchNorm1d(hidden_size, affine=True),
-            activation_function(activation, num_parameters=hidden_size, init=1.0),
-            nn.Linear(hidden_size, nstyle, bias=False),
-            nn.BatchNorm1d(nstyle, affine=False)])
+                nn.BatchNorm1d(hidden_size, affine=False),
+                nn.Linear(hidden_size, hidden_size, bias=True)])
+        sequential_layers.append(nn.BatchNorm1d(nstyle, affine=False))
             # add this batchnorm layer to make sure the output is standardized.
         self.main = nn.Sequential(*sequential_layers)
 
@@ -173,16 +169,16 @@ class FCDecoder(nn.Module):
 
         ll_act = activation_function(last_layer_activation, num_parameters=dim_out)
 
-        sequential_layers = [nn.Linear(nstyle, hidden_size, bias=False)] # the first layer.
+        sequential_layers = [nn.Linear(nstyle, hidden_size, bias=True)] # the first layer.
         for _ in range(n_layers-2):
             sequential_layers.extend([ # the n layers in the middle
-                nn.BatchNorm1d(hidden_size, affine=True),
                 activation_function(activation, num_parameters=hidden_size, init=1.0),
-                nn.Linear(hidden_size, hidden_size, bias=False)])
+                nn.BatchNorm1d(hidden_size, affine=False),
+                nn.Linear(hidden_size, hidden_size, bias=True)])
         sequential_layers.extend([ # the last layer
-            nn.BatchNorm1d(hidden_size, affine=True),
             activation_function(activation, num_parameters=hidden_size, init=1.0),
-            nn.Linear(hidden_size, dim_out),
+            nn.BatchNorm1d(hidden_size, affine=False),
+            nn.Linear(hidden_size, dim_out, bias=True),
             ll_act])  
         self.main = nn.Sequential(*sequential_layers)
         
@@ -232,17 +228,17 @@ class ExLayers(nn.Module):
 
         pe = torch.arange(dim_out, dtype=torch.float32, requires_grad=False) + 1
         self.register_buffer("position_embedding_gate", pe[:, None])
-        gate_layers = [nn.Linear(1, gate_window, bias=False)]
+        gate_layers = [nn.Linear(1, gate_window, bias=True)]
         assert n_gate_layers >= 2
         for _ in range(n_gate_layers-2):
             gate_layers.extend([
-                nn.BatchNorm1d(gate_window, affine=True),
                 activation_function(activation, num_parameters=gate_window, init=1.0),
+                nn.BatchNorm1d(gate_window, affine=False),
                 nn.Dropout(gate_dropout),
-                nn.Linear(gate_window, gate_window, bias=False)])
+                nn.Linear(gate_window, gate_window, bias=True)])
         gate_layers.extend([
-            nn.BatchNorm1d(gate_window, affine=True),
             activation_function(activation, num_parameters=gate_window, init=1.0),
+            nn.BatchNorm1d(gate_window, affine=False),
             nn.Dropout(gate_dropout),
             nn.Linear(gate_window, gate_window, bias=True),
             nn.Softmax(dim=1)])  
@@ -259,19 +255,19 @@ class ExLayers(nn.Module):
                           padding=self.padding, padding_mode=self.padding_mode)]
         else:
             intensity_layers = [
-                nn.Conv1d(2, n_channels, kernel_size=hidden_kernel_size, bias=False,
+                nn.Conv1d(2, n_channels, kernel_size=hidden_kernel_size, bias=True,
                           padding=self.padding, padding_mode=self.padding_mode)]
         for _ in range(n_exlayers - 2):
             intensity_layers.extend([
-                nn.BatchNorm1d(n_channels, affine=True),
                 activation_function(activation, num_parameters=n_channels, init=1.0),
+                nn.BatchNorm1d(n_channels, affine=False),
                 nn.Dropout1d(ex_dropout),
-                nn.Conv1d(n_channels, n_channels, kernel_size=hidden_kernel_size, bias=False,
+                nn.Conv1d(n_channels, n_channels, kernel_size=hidden_kernel_size, bias=True,
                           padding=self.padding, padding_mode=self.padding_mode)])
         if n_exlayers >= 2:
             intensity_layers.extend([
-                nn.BatchNorm1d(n_channels, affine=True),
                 activation_function(activation, num_parameters=n_channels, init=1.0),
+                nn.BatchNorm1d(n_channels, affine=False),
                 nn.Dropout1d(ex_dropout),
                 nn.Conv1d(n_channels, 1, kernel_size=hidden_kernel_size, bias=True,
                           padding=self.padding, padding_mode=self.padding_mode)])
@@ -381,15 +377,15 @@ class DiscriminatorFC(nn.Module):
     def __init__(self, hiden_size=64, nstyle=5, noise=0.1, layers=3, activation='Swish'):
         super(DiscriminatorFC, self).__init__()
         
-        sequential_layers = [nn.Linear(nstyle, hiden_size, bias=False)]
+        sequential_layers = [nn.Linear(nstyle, hiden_size, bias=True)]
         for _ in range(layers-2):
             sequential_layers.extend([
-                nn.BatchNorm1d(hiden_size, affine=True),
                 activation_function(activation, num_parameters=hiden_size, init=1.0),
-                nn.Linear(hiden_size, hiden_size, bias=False)])
+                nn.BatchNorm1d(hiden_size, affine=False),
+                nn.Linear(hiden_size, hiden_size, bias=True)])
         sequential_layers.extend([
-            nn.BatchNorm1d(hiden_size, affine=True),
             activation_function(activation, num_parameters=hiden_size, init=1.0),
+            nn.BatchNorm1d(hiden_size, affine=False),
             nn.Linear(hiden_size, 1, bias=True)])
         self.main = nn.Sequential(*sequential_layers)
         
