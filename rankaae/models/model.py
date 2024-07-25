@@ -127,7 +127,8 @@ class FCEncoder(nn.Module):
         nstyle=5, 
         dim_in=256, 
         n_layers=3,
-        hidden_size=64):
+        hidden_size=64,
+        activation='Swish'):
         super(FCEncoder, self).__init__()
 
         self.dim_in = dim_in
@@ -135,11 +136,11 @@ class FCEncoder(nn.Module):
         for _ in range(n_layers-2):
             sequential_layers.extend([
                 nn.BatchNorm1d(hidden_size, affine=True),
-                activation_function(num_parameters=hidden_size, init=1.0),
+                activation_function(activation, num_parameters=hidden_size, init=1.0),
                 nn.Linear(hidden_size, hidden_size, bias=False)])
         sequential_layers.extend([ # last layer
             nn.BatchNorm1d(hidden_size, affine=True),
-            activation_function(num_parameters=hidden_size, init=1.0),
+            activation_function(activation, num_parameters=hidden_size, init=1.0),
             nn.Linear(hidden_size, nstyle, bias=False),
             nn.BatchNorm1d(nstyle, affine=False)])
             # add this batchnorm layer to make sure the output is standardized.
@@ -163,6 +164,7 @@ class FCDecoder(nn.Module):
         nstyle=5, 
         debug=False, 
         dim_out=256, 
+        activation='Swish',
         last_layer_activation='ReLu', 
         n_layers=3,
         hidden_size=64
@@ -175,11 +177,11 @@ class FCDecoder(nn.Module):
         for _ in range(n_layers-2):
             sequential_layers.extend([ # the n layers in the middle
                 nn.BatchNorm1d(hidden_size, affine=True),
-                activation_function(num_parameters=hidden_size, init=1.0),
+                activation_function(activation, num_parameters=hidden_size, init=1.0),
                 nn.Linear(hidden_size, hidden_size, bias=False)])
         sequential_layers.extend([ # the last layer
             nn.BatchNorm1d(hidden_size, affine=True),
-            activation_function(num_parameters=hidden_size, init=1.0),
+            activation_function(activation, num_parameters=hidden_size, init=1.0),
             nn.Linear(hidden_size, dim_out),
             ll_act])  
         self.main = nn.Sequential(*sequential_layers)
@@ -205,6 +207,7 @@ class ExLayers(nn.Module):
                  n_gate_layers=5,
                  n_channels=13,
                  hidden_kernel_size=3,
+                 activation='Swish',
                  last_layer_activation='Softplus',
                  padding_mode='stretch',
                  energy_noise=0.1,
@@ -234,12 +237,12 @@ class ExLayers(nn.Module):
         for _ in range(n_gate_layers-2):
             gate_layers.extend([
                 nn.BatchNorm1d(gate_window, affine=True),
-                activation_function(num_parameters=gate_window, init=1.0),
+                activation_function(activation, num_parameters=gate_window, init=1.0),
                 nn.Dropout(gate_dropout),
                 nn.Linear(gate_window, gate_window, bias=False)])
         gate_layers.extend([
             nn.BatchNorm1d(gate_window, affine=True),
-            activation_function(num_parameters=gate_window, init=1.0),
+            activation_function(activation, num_parameters=gate_window, init=1.0),
             nn.Dropout(gate_dropout),
             nn.Linear(gate_window, gate_window, bias=True),
             nn.Softmax(dim=1)])  
@@ -261,19 +264,19 @@ class ExLayers(nn.Module):
         for _ in range(n_exlayers - 2):
             intensity_layers.extend([
                 nn.BatchNorm1d(n_channels, affine=True),
-                activation_function(num_parameters=n_channels, init=1.0),
+                activation_function(activation, num_parameters=n_channels, init=1.0),
                 nn.Dropout1d(ex_dropout),
                 nn.Conv1d(n_channels, n_channels, kernel_size=hidden_kernel_size, bias=False,
                           padding=self.padding, padding_mode=self.padding_mode)])
         if n_exlayers >= 2:
             intensity_layers.extend([
                 nn.BatchNorm1d(n_channels, affine=True),
-                activation_function(num_parameters=n_channels, init=1.0),
+                activation_function(activation, num_parameters=n_channels, init=1.0),
                 nn.Dropout1d(ex_dropout),
                 nn.Conv1d(n_channels, 1, kernel_size=hidden_kernel_size, bias=True,
                           padding=self.padding, padding_mode=self.padding_mode)])
         if last_layer_activation:
-            ll_act = build_activation_function(1, last_layer_activation)
+            ll_act = activation_function(last_layer_activation, num_parameters=1)
             intensity_layers.append(ll_act)
         self.intensity_adjuster = nn.Sequential(*intensity_layers) 
 
@@ -314,6 +317,7 @@ class ExEncoder(nn.Module):
                  n_gate_layers=5,
                  n_channels=13,
                  hidden_kernel_size=3,
+                 activation='Swish',
                  last_layer_activation='Softplus',
                  padding_mode='stretch',
                  energy_noise=0.1,
@@ -323,6 +327,7 @@ class ExEncoder(nn.Module):
         self.ex_layers = ExLayers(dim_in=dim_in, dim_out=enclosing_encoder.dim_in,
             gate_window=gate_window, n_exlayers=n_exlayers, n_gate_layers=n_gate_layers, 
             n_channels=n_channels, hidden_kernel_size=hidden_kernel_size, 
+            activation=activation,
             last_layer_activation=last_layer_activation,
             padding_mode=padding_mode, energy_noise=energy_noise,
             ex_dropout=ex_dropout, gate_dropout=gate_dropout)
@@ -346,6 +351,7 @@ class ExDecoder(nn.Module):
                  n_gate_layers=5,
                  n_channels=13,
                  hidden_kernel_size=3,
+                 activation='Swish',
                  last_layer_activation='Softplus',
                  padding_mode='stretch',
                  energy_noise=0.1,
@@ -355,6 +361,7 @@ class ExDecoder(nn.Module):
         self.ex_layers = ExLayers(dim_in=enclosing_decoder.dim_out, dim_out=dim_out,
             gate_window=gate_window, n_exlayers=n_exlayers, n_gate_layers=n_gate_layers, 
             n_channels=n_channels, hidden_kernel_size=hidden_kernel_size,
+            activation=activation,
             last_layer_activation=last_layer_activation,
             padding_mode=padding_mode, energy_noise=energy_noise,
             ex_dropout=ex_dropout, gate_dropout=gate_dropout)
@@ -371,18 +378,18 @@ class ExDecoder(nn.Module):
 
 
 class DiscriminatorFC(nn.Module):
-    def __init__(self, hiden_size=64, nstyle=5, noise=0.1, layers=3):
+    def __init__(self, hiden_size=64, nstyle=5, noise=0.1, layers=3, activation='Swish'):
         super(DiscriminatorFC, self).__init__()
         
         sequential_layers = [nn.Linear(nstyle, hiden_size, bias=False)]
         for _ in range(layers-2):
             sequential_layers.extend([
                 nn.BatchNorm1d(hiden_size, affine=True),
-                activation_function(num_parameters=hiden_size, init=1.0),
+                activation_function(activation, num_parameters=hiden_size, init=1.0),
                 nn.Linear(hiden_size, hiden_size, bias=False)])
         sequential_layers.extend([
             nn.BatchNorm1d(hiden_size, affine=True),
-            activation_function(num_parameters=hiden_size, init=1.0),
+            activation_function(activation, num_parameters=hiden_size, init=1.0),
             nn.Linear(hiden_size, 1, bias=True)])
         self.main = nn.Sequential(*sequential_layers)
         
