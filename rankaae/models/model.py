@@ -7,8 +7,9 @@ import torch.nn.functional as F
 
 
 class Swish(nn.Module):
-    def __init__(self, num_parameters, init=1.0, dtype=torch.float32):
+    def __init__(self, num_parameters, init=0.25, dtype=torch.float32):
         super(Swish, self).__init__()
+        init = init * 4.0
         self.beta = nn.Parameter(
             torch.full((num_parameters,), fill_value=(init - 1.0), dtype=dtype), 
             requires_grad=True)
@@ -25,7 +26,7 @@ class Swish(nn.Module):
         return s
     
 
-def activation_function(name, num_parameters, init):
+def activation_function(name, num_parameters, init=0.25):
     act_cls_dict = {"ReLU": nn.ReLU, "PReLU": nn.PReLU, "Sigmoid": nn.Sigmoid,
                     "Swish": Swish, "Hardswish": nn.Hardswish, "ReLU6": nn.ReLU6,
                     "SiLU": nn.SiLU, "Mish": nn.Mish, "Hardsigmoid": nn.Hardsigmoid,
