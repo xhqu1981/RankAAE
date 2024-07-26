@@ -19,12 +19,12 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-  "numpy>=1.26",
+  "numpy>=2.0",
   "pyfitit~=3.0.5",
   "torch~=2.4",
   "pytorch_optimizer>=3.0.1",
   "torchvision>0.15",
-  "scipy~=1.10.1",
+  "scipy>=1.14",
   "matplotlib~=3.7.1",
   "plotly~=5.9.0",
   "pandas~=1.5.3",
