@@ -619,6 +619,7 @@ class Trainer:
             )
 
         for net in [encoder, decoder, discriminator]:
+            logger.info(repr(net))
             net.to(device)
 
         # Load trainer
