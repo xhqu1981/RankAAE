@@ -139,7 +139,10 @@ class FCEncoder(nn.Module):
                 activation_function(activation, num_parameters=hidden_size, init=1.0),
                 nn.BatchNorm1d(hidden_size, affine=False),
                 nn.Linear(hidden_size, hidden_size, bias=True)])
-        sequential_layers.append(nn.BatchNorm1d(nstyle, affine=False))
+        sequential_layers.extend([
+            activation_function(activation, num_parameters=hidden_size, init=1.0),
+            nn.Linear(hidden_size, nstyle, bias=True),
+            nn.BatchNorm1d(nstyle, affine=False),])
             # add this batchnorm layer to make sure the output is standardized.
         self.main = nn.Sequential(*sequential_layers)
 
