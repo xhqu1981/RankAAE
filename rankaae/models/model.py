@@ -34,7 +34,7 @@ def activation_function(name, num_parameters, init):
     params = {}
     if name in ["PReLU", "Swish"]:
         params["num_parameters"] = num_parameters
-        params["init"] = int
+        params["init"] = init
     if name in ["Softmax"]:
         params["dim"] = 1
     if name == 'Softplus':
