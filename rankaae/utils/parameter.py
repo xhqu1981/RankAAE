@@ -2,7 +2,7 @@ from rankaae.models.model import (
     FCDecoder,
     FCEncoder,
 )
-import torch_optimizer as ex_optim
+import pytorch_optimizer as ex_optim
 from torch import optim
 
 AE_CLS_DICT = {
@@ -19,7 +19,8 @@ OPTIM_DICT = {
     "NAdam": optim.NAdam,
     "SGD": optim.SGD,
     "AdaBound": ex_optim.AdaBound, 
-    "RAdam": ex_optim.RAdam
+    "RAdam": ex_optim.RAdam,
+    "Lamb": ex_optim.Lamb
 }
 
 
