@@ -168,8 +168,15 @@ class Trainer:
                     aux_loss_train = kendall_constraint(
                         aux_in, styles[:,:n_aux], 
                         force_balance=self.kendall_force_balance,
-                        device=self.device
-                    )
+                        device=self.device)
+                    aux_regen_ratio = self.__dict__.get('aux_regen_ratio', 0.0)
+                    if aux_regen_ratio > 0.0:
+                        styles = self.encoder(self.decoder(styles))
+                        aux_loss_2 = kendall_constraint(
+                            aux_in, styles[:,:n_aux], 
+                            force_balance=self.kendall_force_balance,
+                            device=self.device)
+                        aux_loss_train = (1.0 - aux_regen_ratio) * aux_loss_train + aux_regen_ratio * aux_loss_2
                     aux_loss_train.backward()
                     self.optimizers["correlation"].step()
                 else:
