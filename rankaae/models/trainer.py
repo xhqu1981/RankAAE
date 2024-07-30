@@ -168,8 +168,15 @@ class Trainer:
                     aux_loss_train = kendall_constraint(
                         aux_in, styles[:,:n_aux], 
                         force_balance=self.kendall_force_balance,
-                        device=self.device
-                    )
+                        device=self.device)
+                    aux_regen_ratio = self.__dict__.get('aux_regen_ratio', 0.0)
+                    if aux_regen_ratio > 0.0:
+                        styles = self.encoder(self.decoder(styles))
+                        aux_loss_2 = kendall_constraint(
+                            aux_in, styles[:,:n_aux], 
+                            force_balance=self.kendall_force_balance,
+                            device=self.device)
+                        aux_loss_train = (1.0 - aux_regen_ratio) * aux_loss_train + aux_regen_ratio * aux_loss_2
                     aux_loss_train.backward()
                     self.optimizers["correlation"].step()
                 else:
@@ -577,6 +584,7 @@ class Trainer:
                                 n_gate_layers=p.get('n_gate_layers', 5),
                                 n_channels=p.get('n_channels', 13),
                                 hidden_kernel_size=p.get('hidden_kernel_size', 3),
+                                activation=p.get('activation', "Swish"),
                                 last_layer_activation=p.decoder_activation,
                                 padding_mode=p.get('padding_mode', 'stretch'),
                                 energy_noise=p.get('energy_noise', 0.1),
@@ -588,6 +596,7 @@ class Trainer:
                                 n_gate_layers=p.get('n_gate_layers', 5),
                                 n_channels=p.get('n_channels', 13),
                                 hidden_kernel_size=p.get('hidden_kernel_size', 3),
+                                activation=p.get('activation', "Swish"),
                                 last_layer_activation=p.decoder_activation,
                                 padding_mode=p.get('padding_mode', 'stretch'),
                                 energy_noise=p.get('energy_noise', 0.1),
@@ -600,20 +609,24 @@ class Trainer:
             encoder = AE_CLS_DICT[p.ae_form]["encoder"](
                 nstyle = p.nstyle, 
                 dim_in = p.dim_in, 
-                n_layers = p.n_layers
+                n_layers = p.n_layers,
+                activation=p.get('activation', "Swish"),
             )
             decoder = AE_CLS_DICT[p.ae_form]["decoder"](
                 nstyle = p.nstyle, 
+                activation=p.get('activation', "Swish"),
                 last_layer_activation = p.decoder_activation, 
                 dim_out = p.dim_out,
                 n_layers = p.n_layers
             )
             discriminator = DiscriminatorFC(
                 nstyle=p.nstyle, noise=p.dis_noise,
-                layers = p.FC_discriminator_layers
+                layers = p.FC_discriminator_layers,
+                activation=p.get('activation', "Swish"),
             )
 
         for net in [encoder, decoder, discriminator]:
+            logger.info(repr(net))
             net.to(device)
 
         # Load trainer
