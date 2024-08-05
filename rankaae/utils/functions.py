@@ -222,9 +222,6 @@ def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder,
             smooth_list.pop(-1)
         x_spec = innner_spec_sample
         x_spec = decoder.ex_layers.pad_spectra(x_spec)
-        x_pe = decoder.ex_layers.position_embedding_intensity
-        x_pe = x_pe.repeat([x_spec.size(0), 1, 1])
-        x_spec = torch.cat([x_pe, x_spec], dim=1)
         for m in decoder.ex_layers.intensity_adjuster.children():
             x_spec = m(x_spec)
             if isinstance(m, nn.Conv1d):
@@ -233,9 +230,6 @@ def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder,
 
         x_spec = decoder.ex_layers(innner_spec_sample)
         x_spec = encoder.ex_layers.pad_spectra(x_spec)
-        x_pe = encoder.ex_layers.position_embedding_intensity
-        x_pe = x_pe.repeat([x_spec.size(0), 1, 1])
-        x_spec = torch.cat([x_pe, x_spec], dim=1)
         for m in encoder.ex_layers.intensity_adjuster.children():
             x_spec = m(x_spec)
             if isinstance(m, nn.Conv1d):

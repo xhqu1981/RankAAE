@@ -219,12 +219,10 @@ class ExLayers(nn.Module):
             pre_dim_out = dim_out + (gate_window - 1) + (hidden_kernel_size - 1) * n_exlayers
             self.padding = 'valid'
             self.padding_mode = 'zeros'
-            pe_int_size = pre_dim_out
         else:
             pre_dim_out = dim_out
             self.padding = 'same'
             self.padding_mode = padding_mode
-            pe_int_size = pre_dim_out + gate_window - 1
         left_padding = gate_window // 2
         self.num_pads = (left_padding, (gate_window - 1) - left_padding) 
         self.scale_factor = pre_dim_out / dim_in
@@ -250,16 +248,14 @@ class ExLayers(nn.Module):
         uw = torch.eye(gate_window, dtype=torch.float32, requires_grad=False)[:, None, :]
         self.register_buffer('upend_weights', uw)
 
-        pe_int = torch.arange(pe_int_size, dtype=torch.float32, requires_grad=False) + 1
-        self.register_buffer("position_embedding_intensity", pe_int[None, None, :])
         assert n_exlayers > 0
         if n_exlayers == 1:
             intensity_layers = [
-                nn.Conv1d(2, 1, kernel_size=hidden_kernel_size, bias=True,
+                nn.Conv1d(1, 1, kernel_size=hidden_kernel_size, bias=True,
                           padding=self.padding, padding_mode=self.padding_mode)]
         else:
             intensity_layers = [
-                nn.Conv1d(2, n_channels, kernel_size=hidden_kernel_size, bias=True,
+                nn.Conv1d(1, n_channels, kernel_size=hidden_kernel_size, bias=True,
                           padding=self.padding, padding_mode=self.padding_mode)]
         for _ in range(n_exlayers - 2):
             intensity_layers.extend([
@@ -282,15 +278,11 @@ class ExLayers(nn.Module):
 
     def forward(self, spec):
         if self.training:
-            pe_int = self.position_embedding_intensity + torch.randn_like(self.position_embedding_intensity) * self.energy_noise
             pe_gate = self.position_embedding_gate + torch.randn_like(self.position_embedding_gate) * self.energy_noise
         else:
-            pe_int = self.position_embedding_intensity
             pe_gate = self.position_embedding_gate
-        pe_int = pe_int.repeat([spec.size(0), 1, 1])
 
         spec = self.pad_spectra(spec)
-        spec = torch.cat([pe_int, spec], dim=1)
         spec = self.intensity_adjuster(spec)
         spec = F.conv1d(spec, self.upend_weights)
         
