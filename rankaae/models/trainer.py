@@ -580,28 +580,25 @@ class Trainer:
             mt = torch.load(prev_fn, map_location=device)
             encoder = ExEncoder(p.dim_in, enclosing_encoder=mt['Encoder'],
                                 gate_window=p.get('gate_window', 13),
-                                n_exlayers=p.get('n_exlayers', 1),
-                                n_gate_layers=p.get('n_gate_layers', 5),
-                                n_channels=p.get('n_channels', 13),
-                                hidden_kernel_size=p.get('hidden_kernel_size', 3),
-                                activation=p.get('activation', "Swish"),
-                                last_layer_activation=p.decoder_activation,
-                                padding_mode=p.get('padding_mode', 'stretch'),
-                                energy_noise=p.get('energy_noise', 0.1),
-                                ex_dropout=p.get('ex_dropout', 0.05),
-                                gate_dropout=p.get('gate_dropout',0.05))
+                                n_gate_encoder_layers=p.get('n_gate_encoder_layers', 3),
+                                n_gate_decoder_layers=p.get('n_gate_decoder_layers', 3),
+                                n_gate_sel_layers=p.get('n_gate_sel_layers', 3),
+                                gate_hidden_size=p.get('gate_hidden_size', 64),
+                                gate_latent_dim=p.get('gate_latent_dim', 1),
+                                activation=p.get('ex_activation', 'Swish'),
+                                n_polynomial_order=p.get('n_polynomial_order', 3),
+                                n_polynomial_points=p.get('n_polynomial_points', 10),
+                                padding_mode=p.get('padding_mode', 'stretch'))
             decoder = ExDecoder(p.dim_out, enclosing_decoder=mt['Decoder'],
-                                gate_window=p.get('gate_window', 13),
-                                n_exlayers=p.get('n_exlayers', 1),
-                                n_gate_layers=p.get('n_gate_layers', 5),
-                                n_channels=p.get('n_channels', 13),
-                                hidden_kernel_size=p.get('hidden_kernel_size', 3),
-                                activation=p.get('activation', "Swish"),
-                                last_layer_activation=p.decoder_activation,
-                                padding_mode=p.get('padding_mode', 'stretch'),
-                                energy_noise=p.get('energy_noise', 0.1),
-                                ex_dropout=p.get('ex_dropout', 0.05),
-                                gate_dropout=p.get('gate_dropout',0.05))
+                                n_gate_encoder_layers=p.get('n_gate_encoder_layers', 3),
+                                n_gate_decoder_layers=p.get('n_gate_decoder_layers', 3),
+                                n_gate_sel_layers=p.get('n_gate_sel_layers', 3),
+                                gate_hidden_size=p.get('gate_hidden_size', 64),
+                                gate_latent_dim=p.get('gate_latent_dim', 1),
+                                activation=p.get('ex_activation', 'Swish'),
+                                n_polynomial_order=p.get('n_polynomial_order', 3),
+                                n_polynomial_points=p.get('n_polynomial_points', 10),
+                                padding_mode=p.get('padding_mode', 'stretch'))
             discriminator = mt['Style Discriminator']
         else:
             # Generate encoder, decoder and discriminator

@@ -209,8 +209,8 @@ class ExLayers(nn.Module):
                  gate_hidden_size=64,
                  gate_latent_dim=1,
                  activation='Swish',
-                 n_polynomial_order = 3,
-                 n_polynomial_points = 10,
+                 n_polynomial_order=3,
+                 n_polynomial_points=10,
                  padding_mode='stretch'):
         super(ExLayers, self).__init__()
         if padding_mode == 'stretch':
@@ -300,24 +300,29 @@ class ExEncoder(nn.Module):
                  dim_in: int,
                  enclosing_encoder: FCEncoder,
                  gate_window=13,
-                 n_exlayers=1,
-                 n_gate_layers=5,
-                 n_channels=13,
-                 hidden_kernel_size=3,
+                 n_gate_encoder_layers=3,
+                 n_gate_decoder_layers=3,
+                 n_gate_sel_layers=3,
+                 gate_hidden_size=64,
+                 gate_latent_dim=1,
                  activation='Swish',
-                 last_layer_activation='Softplus',
-                 padding_mode='stretch',
-                 energy_noise=0.1,
-                 ex_dropout=0.05,
-                 gate_dropout=0.05):
+                 n_polynomial_order=3,
+                 n_polynomial_points=10,
+                 padding_mode='stretch'):
         super(ExEncoder, self).__init__()
-        self.ex_layers = ExLayers(dim_in=dim_in, dim_out=enclosing_encoder.dim_in,
-            gate_window=gate_window, n_polynomial_layers=n_exlayers, n_gate_layers=n_gate_layers, 
-            n_channels=n_channels, hidden_kernel_size=hidden_kernel_size, 
+        self.ex_layers = ExLayers(
+            dim_in=dim_in, 
+            dim_out=enclosing_encoder.dim_in,
+            gate_window=gate_window, 
+            n_gate_encoder_layers=n_gate_encoder_layers,
+            n_gate_decoder_layers=n_gate_decoder_layers,
+            n_gate_sel_layers=n_gate_sel_layers,
+            gate_hidden_size=gate_hidden_size,
+            gate_latent_dim=gate_latent_dim,
             activation=activation,
-            last_layer_activation=last_layer_activation,
-            padding_mode=padding_mode, energy_noise=energy_noise,
-            ex_dropout=ex_dropout, gate_dropout=gate_dropout)
+            n_polynomial_order=n_polynomial_order,
+            n_polynomial_points=n_polynomial_points,
+            padding_mode=padding_mode)
         self.enclosing_encoder = enclosing_encoder
 
     def forward(self, spec):
@@ -334,24 +339,29 @@ class ExDecoder(nn.Module):
                  dim_out: int,
                  enclosing_decoder: FCDecoder,
                  gate_window=13,
-                 n_exlayers=1,
-                 n_gate_layers=5,
-                 n_channels=13,
-                 hidden_kernel_size=3,
+                 n_gate_encoder_layers=3,
+                 n_gate_decoder_layers=3,
+                 n_gate_sel_layers=3,
+                 gate_hidden_size=64,
+                 gate_latent_dim=1,
                  activation='Swish',
-                 last_layer_activation='Softplus',
-                 padding_mode='stretch',
-                 energy_noise=0.1,
-                 ex_dropout=0.05,
-                 gate_dropout=0.05):
+                 n_polynomial_order=3,
+                 n_polynomial_points=10,
+                 padding_mode='stretch'):
         super(ExDecoder, self).__init__()
-        self.ex_layers = ExLayers(dim_in=enclosing_decoder.dim_out, dim_out=dim_out,
-            gate_window=gate_window, n_polynomial_layers=n_exlayers, n_gate_layers=n_gate_layers, 
-            n_channels=n_channels, hidden_kernel_size=hidden_kernel_size,
+        self.ex_layers = ExLayers(
+            dim_in=enclosing_decoder.dim_out, 
+            dim_out=dim_out,
+            gate_window=gate_window,
+            n_gate_encoder_layers=n_gate_encoder_layers,
+            n_gate_decoder_layers=n_gate_decoder_layers,
+            n_gate_sel_layers=n_gate_sel_layers,
+            gate_hidden_size=gate_hidden_size,
+            gate_latent_dim=gate_latent_dim,
             activation=activation,
-            last_layer_activation=last_layer_activation,
-            padding_mode=padding_mode, energy_noise=energy_noise,
-            ex_dropout=ex_dropout, gate_dropout=gate_dropout)
+            n_polynomial_order=n_polynomial_order,
+            n_polynomial_points=n_polynomial_points,
+            padding_mode=padding_mode)
         self.enclosing_decoder = enclosing_decoder
         self.nstyle = enclosing_decoder.nstyle
 
