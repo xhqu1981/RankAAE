@@ -235,15 +235,7 @@ class ExLayers(nn.Module):
                  n_polynomial_points=10,
                  padding_mode='stretch'):
         super(ExLayers, self).__init__()
-        if padding_mode == 'stretch':
-            pre_dim_out = dim_out + (gate_window - 1)
-            self.num_pads = None
-        else:
-            pre_dim_out = dim_out
-            left_padding = gate_window // 2
-            self.num_pads = (left_padding, (gate_window - 1) - left_padding)
-        self.stretch_scale_factor = pre_dim_out / dim_in
-        self.padding_mode = padding_mode
+        self.compute_padding_params(dim_in, dim_out, gate_window, padding_mode)
 
         gate_layers = [nn.Linear(dim_in, gate_hidden_size, bias=True)] # first layer
         for _ in range(n_gate_encoder_layers):
@@ -281,6 +273,8 @@ class ExLayers(nn.Module):
         exponents = torch.arange(n_polynomial_order + 1.0, dtype=torch.float)[None, :, None]
         self.register_buffer('exponents', exponents)
 
+    
+
     def forward(self, spec):
         ene_sel = self.gate(spec)
         spec = self.pad_spectra(spec)
@@ -293,6 +287,17 @@ class ExLayers(nn.Module):
         d_spec = torch.pow(spec[:, None, :], self.exponents).sum(dim=1) * pw[None, :, :]
         spec = spec + d_spec
         return spec
+
+    def compute_padding_params(self, dim_in, dim_out, gate_window, padding_mode):
+        if padding_mode == 'stretch':
+            pre_dim_out = dim_out + (gate_window - 1)
+            self.num_pads = None
+        else:
+            pre_dim_out = dim_out
+            left_padding = gate_window // 2
+            self.num_pads = (left_padding, (gate_window - 1) - left_padding)
+        self.stretch_scale_factor = pre_dim_out / dim_in
+        self.padding_mode = padding_mode
 
     def pad_spectra(self, spec):
         spec = spec[:, None, :, None]
