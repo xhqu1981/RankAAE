@@ -220,14 +220,15 @@ class TwoHotGenerator(nn.Module):
     def forward(self, spec):
         return self.main(spec)
 
+
 class ExLayers(nn.Module):
     def __init__(self,
                  dim_in: int,
                  dim_out: int,
+                 two_hot_generator: TwoHotGenerator,
                  gate_window=13,
                  n_gate_encoder_layers=3,
                  n_gate_decoder_layers=3,
-                 n_gate_sel_layers=3,
                  gate_hidden_size=64,
                  gate_latent_dim=1,
                  activation='Swish',
@@ -237,30 +238,12 @@ class ExLayers(nn.Module):
         super(ExLayers, self).__init__()
         self.compute_padding_params(dim_in, dim_out, gate_window, padding_mode)
 
-        gate_layers = [nn.Linear(dim_in, gate_hidden_size, bias=True)] # first layer
-        for _ in range(n_gate_encoder_layers):
-            gate_layers.extend([
-                activation_function(activation, num_parameters=gate_hidden_size, init=1.0),
-                nn.BatchNorm1d(gate_hidden_size, affine=False),
-                nn.Linear(gate_hidden_size, gate_hidden_size, bias=True)])
-        gate_layers.extend([
-                activation_function(activation, num_parameters=gate_hidden_size, init=1.0),
-                nn.BatchNorm1d(gate_hidden_size, affine=False),
-                nn.Linear(gate_hidden_size, gate_latent_dim, bias=True),
-
-                activation_function(activation, num_parameters=gate_latent_dim, init=1.0),
-                nn.BatchNorm1d(gate_latent_dim, affine=False),
-                nn.Linear(gate_latent_dim, gate_hidden_size, bias=True)])
-        for _ in range(n_gate_decoder_layers):
-            gate_layers.extend([
-                activation_function(activation, num_parameters=gate_hidden_size, init=1.0),
-                nn.BatchNorm1d(gate_hidden_size, affine=False),
-                nn.Linear(gate_hidden_size, gate_hidden_size, bias=True)])
-        gate_layers.extend([
-                activation_function(activation, num_parameters=gate_hidden_size, init=1.0),
-                nn.BatchNorm1d(gate_hidden_size, affine=False),
-                nn.Linear(gate_hidden_size, dim_out, bias=True)])
-
+        gate_layers = [
+            FCEncoder(gate_latent_dim, dim_in, n_gate_encoder_layers, gate_hidden_size, activation),
+            FCDecoder(gate_latent_dim, dim_out, activation, last_layer_activation=activation,
+                      n_layers=n_gate_decoder_layers, hidden_size=gate_hidden_size),
+            nn.Unflatten(1, [1, dim_out]),
+            two_hot_generator]
         self.gate = nn.Sequential(*gate_layers) 
 
         uw = torch.eye(gate_window, dtype=torch.float32, requires_grad=False)[:, None, :]
@@ -272,8 +255,6 @@ class ExLayers(nn.Module):
         self.polynomial_interp_size = [dim_out, 1]
         exponents = torch.arange(n_polynomial_order + 1.0, dtype=torch.float)[None, :, None]
         self.register_buffer('exponents', exponents)
-
-    
 
     def forward(self, spec):
         ene_sel = self.gate(spec)
