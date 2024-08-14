@@ -203,98 +203,91 @@ class ExLayers(nn.Module):
                  dim_in: int,
                  dim_out: int,
                  gate_window=13,
-                 n_exlayers=1,
-                 n_gate_layers=5,
-                 n_channels=13,
-                 hidden_kernel_size=3,
+                 n_gate_encoder_layers=3,
+                 n_gate_decoder_layers=3,
+                 n_gate_sel_layers=3,
+                 gate_hidden_size=64,
+                 gate_latent_dim=1,
                  activation='Swish',
-                 last_layer_activation='Softplus',
-                 padding_mode='stretch',
-                 energy_noise=0.1,
-                 ex_dropout=0.05,
-                 gate_dropout=0.05):
+                 n_polynomial_order = 3,
+                 n_polynomial_points = 10,
+                 padding_mode='stretch'):
         super(ExLayers, self).__init__()
-
         if padding_mode == 'stretch':
-            pre_dim_out = dim_out + (gate_window - 1) + (hidden_kernel_size - 1) * n_exlayers
-            self.padding = 'valid'
-            self.padding_mode = 'zeros'
+            pre_dim_out = dim_out + (gate_window - 1)
+            self.num_pads = None
         else:
             pre_dim_out = dim_out
-            self.padding = 'same'
-            self.padding_mode = padding_mode
-        left_padding = gate_window // 2
-        self.num_pads = (left_padding, (gate_window - 1) - left_padding) 
-        self.scale_factor = pre_dim_out / dim_in
-        self.energy_noise = energy_noise
+            left_padding = gate_window // 2
+            self.num_pads = (left_padding, (gate_window - 1) - left_padding)
+        self.stretch_scale_factor = pre_dim_out / dim_in
+        self.padding_mode = padding_mode
 
-        pe = torch.arange(dim_out, dtype=torch.float32, requires_grad=False) + 1
-        self.register_buffer("position_embedding_gate", pe[:, None])
-        gate_layers = [nn.Linear(1, gate_window, bias=True)]
-        assert n_gate_layers >= 2
-        for _ in range(n_gate_layers-2):
+        gate_layers = [nn.Linear(dim_in, gate_hidden_size, bias=True)] # first layer
+        for _ in range(n_gate_encoder_layers):
+            gate_layers.extend([
+                activation_function(activation, num_parameters=gate_hidden_size, init=1.0),
+                nn.BatchNorm1d(gate_hidden_size, affine=False),
+                nn.Linear(gate_hidden_size, gate_hidden_size, bias=True)])
+        gate_layers.extend([
+                activation_function(activation, num_parameters=gate_hidden_size, init=1.0),
+                nn.BatchNorm1d(gate_hidden_size, affine=False),
+                nn.Linear(gate_latent_dim, gate_latent_dim, bias=True),
+
+                activation_function(activation, num_parameters=gate_latent_dim, init=1.0),
+                nn.BatchNorm1d(gate_latent_dim, affine=False),
+                nn.Linear(gate_latent_dim, gate_hidden_size, bias=True)])
+        for _ in range(n_gate_decoder_layers):
+            gate_layers.extend([
+                activation_function(activation, num_parameters=gate_hidden_size, init=1.0),
+                nn.BatchNorm1d(gate_hidden_size, affine=False),
+                nn.Linear(gate_hidden_size, gate_hidden_size, bias=True)])
+        gate_layers.extend([
+                activation_function(activation, num_parameters=gate_hidden_size, init=1.0),
+                nn.BatchNorm1d(gate_hidden_size, affine=False),
+                nn.Linear(gate_latent_dim, dim_out, bias=True),
+
+                nn.Unflatten(1, [1, dim_out]),
+                activation_function(activation, num_parameters=gate_hidden_size, init=1.0),
+                nn.BatchNorm1d(1, affine=False),
+                nn.Conv1d(1, gate_window, kernel_size=1)])
+        
+        for _ in range(n_gate_sel_layers):
             gate_layers.extend([
                 activation_function(activation, num_parameters=gate_window, init=1.0),
                 nn.BatchNorm1d(gate_window, affine=False),
-                nn.Dropout(gate_dropout),
-                nn.Linear(gate_window, gate_window, bias=True)])
-        gate_layers.extend([
-            activation_function(activation, num_parameters=gate_window, init=1.0),
-            nn.BatchNorm1d(gate_window, affine=False),
-            nn.Dropout(gate_dropout),
-            nn.Linear(gate_window, gate_window, bias=True),
-            nn.Softmax(dim=1)])  
-        self.gate_weights = nn.Sequential(*gate_layers)
+                nn.Conv1d(gate_window, gate_window, kernel_size=1)])
+        gate_layers.append(nn.Softmax(dim=1))
+        self.gate = nn.Sequential(gate_layers) 
+
         uw = torch.eye(gate_window, dtype=torch.float32, requires_grad=False)[:, None, :]
         self.register_buffer('upend_weights', uw)
 
-        assert n_exlayers > 0
-        if n_exlayers == 1:
-            intensity_layers = [
-                nn.Conv1d(1, 1, kernel_size=hidden_kernel_size, bias=True,
-                          padding=self.padding, padding_mode=self.padding_mode)]
-        else:
-            intensity_layers = [
-                nn.Conv1d(1, n_channels, kernel_size=hidden_kernel_size, bias=True,
-                          padding=self.padding, padding_mode=self.padding_mode)]
-        for _ in range(n_exlayers - 2):
-            intensity_layers.extend([
-                activation_function(activation, num_parameters=n_channels, init=1.0),
-                nn.BatchNorm1d(n_channels, affine=False),
-                nn.Dropout1d(ex_dropout),
-                nn.Conv1d(n_channels, n_channels, kernel_size=hidden_kernel_size, bias=True,
-                          padding=self.padding, padding_mode=self.padding_mode)])
-        if n_exlayers >= 2:
-            intensity_layers.extend([
-                activation_function(activation, num_parameters=n_channels, init=1.0),
-                nn.BatchNorm1d(n_channels, affine=False),
-                nn.Dropout1d(ex_dropout),
-                nn.Conv1d(n_channels, 1, kernel_size=hidden_kernel_size, bias=True,
-                          padding=self.padding, padding_mode=self.padding_mode)])
-        if last_layer_activation:
-            ll_act = activation_function(last_layer_activation, num_parameters=1)
-            intensity_layers.append(ll_act)
-        self.intensity_adjuster = nn.Sequential(*intensity_layers) 
+        self.polynomial_weights = nn.Parameter(torch.zeros(
+            [n_polynomial_order + 1, 1, n_polynomial_points, 1]), 
+            requires_grad=True)
+        self.polynomial_interp_size = [dim_out, 1]
 
     def forward(self, spec):
-        if self.training:
-            pe_gate = self.position_embedding_gate + torch.randn_like(self.position_embedding_gate) * self.energy_noise
-        else:
-            pe_gate = self.position_embedding_gate
-
+        ene_sel = self.gate(spec)
         spec = self.pad_spectra(spec)
-        spec = self.intensity_adjuster(spec)
         spec = F.conv1d(spec, self.upend_weights)
+        spec = (spec * ene_sel).sum(dim=1)
         
-        sel_weights = self.gate_weights(pe_gate).T[None, ...]
-        spec = (spec * sel_weights).sum(dim=1)
-        spec = spec.squeeze(dim=1)
+        pw = F.interpolate(self.polynomial_weights, size=self.polynomial_interp_size, 
+                           mode='bicubic', align_corners=True)
+        pw = pw.squeeze(dim=-1).squeeze(dim=1)
+        d_spec = torch.pow(spec[:, None, :], pw[None, :, :]).sum(dim=1)
+        spec = spec + spec
         return spec
 
     def pad_spectra(self, spec):
-        spec = nn.functional.interpolate(spec[:, None, :], 
-            scale_factor=self.scale_factor, mode='linear', align_corners=True)
-        if self.padding == 'same':
+        spec = spec[:, None, :, None]
+        if self.stretch_scale_factor != 1.0:
+            spec = nn.functional.interpolate(spec, 
+                scale_factor=self.stretch_scale_factor, mode='bicubic', align_corners=True)
+        spec = spec.squeeze(dim=3)
+        if self.padding_mode != 'stretch':
             pm = self.padding_mode.replace('zeros', 'constant')
             spec = F.pad(spec, self.num_pads, mode=pm)
         return spec
@@ -317,7 +310,7 @@ class ExEncoder(nn.Module):
                  gate_dropout=0.05):
         super(ExEncoder, self).__init__()
         self.ex_layers = ExLayers(dim_in=dim_in, dim_out=enclosing_encoder.dim_in,
-            gate_window=gate_window, n_exlayers=n_exlayers, n_gate_layers=n_gate_layers, 
+            gate_window=gate_window, n_polynomial_layers=n_exlayers, n_gate_layers=n_gate_layers, 
             n_channels=n_channels, hidden_kernel_size=hidden_kernel_size, 
             activation=activation,
             last_layer_activation=last_layer_activation,
@@ -351,7 +344,7 @@ class ExDecoder(nn.Module):
                  gate_dropout=0.05):
         super(ExDecoder, self).__init__()
         self.ex_layers = ExLayers(dim_in=enclosing_decoder.dim_out, dim_out=dim_out,
-            gate_window=gate_window, n_exlayers=n_exlayers, n_gate_layers=n_gate_layers, 
+            gate_window=gate_window, n_polynomial_layers=n_exlayers, n_gate_layers=n_gate_layers, 
             n_channels=n_channels, hidden_kernel_size=hidden_kernel_size,
             activation=activation,
             last_layer_activation=last_layer_activation,
