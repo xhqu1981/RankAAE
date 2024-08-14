@@ -232,7 +232,7 @@ class ExLayers(nn.Module):
         gate_layers.extend([
                 activation_function(activation, num_parameters=gate_hidden_size, init=1.0),
                 nn.BatchNorm1d(gate_hidden_size, affine=False),
-                nn.Linear(gate_latent_dim, gate_latent_dim, bias=True),
+                nn.Linear(gate_hidden_size, gate_latent_dim, bias=True),
 
                 activation_function(activation, num_parameters=gate_latent_dim, init=1.0),
                 nn.BatchNorm1d(gate_latent_dim, affine=False),
@@ -245,7 +245,7 @@ class ExLayers(nn.Module):
         gate_layers.extend([
                 activation_function(activation, num_parameters=gate_hidden_size, init=1.0),
                 nn.BatchNorm1d(gate_hidden_size, affine=False),
-                nn.Linear(gate_latent_dim, dim_out, bias=True),
+                nn.Linear(gate_hidden_size, dim_out, bias=True),
 
                 nn.Unflatten(1, [1, dim_out]),
                 activation_function(activation, num_parameters=gate_hidden_size, init=1.0),
