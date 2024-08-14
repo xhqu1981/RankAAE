@@ -196,7 +196,29 @@ class FCDecoder(nn.Module):
     
     def get_training_parameters(self):
         return self.parameters()
+
+
+class TwoHotGenerator(nn.Module):
+    def __init__(self, gate_window=13, hidden_size=16, n_layers=3, activation='Swish'):
+        super(TwoHotGenerator, self).__init__()
+        self.gate_window = gate_window
+        assert n_layers >= 2
+
+        layers = [nn.Conv1d(1, hidden_size, kernel_size=1)]
+        for _ in range(n_layers - 2):
+            layers.extend([
+                activation_function(activation, num_parameters=hidden_size, init=1.0),
+                nn.BatchNorm1d(hidden_size, affine=False),
+                nn.Conv1d(hidden_size, hidden_size, kernel_size=1)])
+        layers.extend([
+            activation_function(activation, num_parameters=hidden_size, init=1.0),
+            nn.BatchNorm1d(hidden_size, affine=False),
+            nn.Conv1d(hidden_size, gate_window, kernel_size=1),
+            layers.append(nn.Softmax(dim=1))])
+        self.main = nn.Sequential(*layers)
     
+    def forward(self, spec):
+        return self.main(spec)
 
 class ExLayers(nn.Module):
     def __init__(self,
@@ -245,20 +267,9 @@ class ExLayers(nn.Module):
         gate_layers.extend([
                 activation_function(activation, num_parameters=gate_hidden_size, init=1.0),
                 nn.BatchNorm1d(gate_hidden_size, affine=False),
-                nn.Linear(gate_hidden_size, dim_out, bias=True),
+                nn.Linear(gate_hidden_size, dim_out, bias=True)])
 
-                nn.Unflatten(1, [1, dim_out]),
-                activation_function(activation, num_parameters=gate_hidden_size, init=1.0),
-                nn.BatchNorm1d(1, affine=False),
-                nn.Conv1d(1, gate_window, kernel_size=1)])
-        
-        for _ in range(n_gate_sel_layers):
-            gate_layers.extend([
-                activation_function(activation, num_parameters=gate_window, init=1.0),
-                nn.BatchNorm1d(gate_window, affine=False),
-                nn.Conv1d(gate_window, gate_window, kernel_size=1)])
-        gate_layers.append(nn.Softmax(dim=1))
-        self.gate = nn.Sequential(gate_layers) 
+        self.gate = nn.Sequential(*gate_layers) 
 
         uw = torch.eye(gate_window, dtype=torch.float32, requires_grad=False)[:, None, :]
         self.register_buffer('upend_weights', uw)
