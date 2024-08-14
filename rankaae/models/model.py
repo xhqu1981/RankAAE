@@ -278,7 +278,7 @@ class ExLayers(nn.Module):
                            mode='bicubic', align_corners=True)
         pw = pw.squeeze(dim=-1).squeeze(dim=1)
         d_spec = torch.pow(spec[:, None, :], pw[None, :, :]).sum(dim=1)
-        spec = spec + spec
+        spec = spec + d_spec
         return spec
 
     def pad_spectra(self, spec):
