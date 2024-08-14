@@ -267,6 +267,8 @@ class ExLayers(nn.Module):
             [n_polynomial_order + 1, 1, n_polynomial_points, 1]), 
             requires_grad=True)
         self.polynomial_interp_size = [dim_out, 1]
+        exponents = torch.arange(n_polynomial_order + 1.0, dtype=torch.float)[None, :, None]
+        self.register_buffer('exponents', exponents)
 
     def forward(self, spec):
         ene_sel = self.gate(spec)
@@ -277,7 +279,7 @@ class ExLayers(nn.Module):
         pw = F.interpolate(self.polynomial_weights, size=self.polynomial_interp_size, 
                            mode='bicubic', align_corners=True)
         pw = pw.squeeze(dim=-1).squeeze(dim=1)
-        d_spec = torch.pow(spec[:, None, :], pw[None, :, :]).sum(dim=1)
+        d_spec = torch.pow(spec[:, None, :], self.exponents).sum(dim=1) * pw[None, :, :]
         spec = spec + d_spec
         return spec
 
