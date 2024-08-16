@@ -194,8 +194,7 @@ def mutual_info_loss(batch_size, nstyle, encoder, decoder, n_aux, mse_loss=None,
     return loss
 
 
-def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder, 
-               gs_kernel_size, layered_smooth=False, mse_loss=None, device=None):
+def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder, mse_loss=None, device=None):
     """
     Sample latent space, reconstruct spectra and feed back to encoder to reconstruct latent space.
     Return the loss between the sampled and reconstructed latent spacc.
@@ -211,46 +210,6 @@ def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder,
     innner_spec_reconn = encoder.ex_layers(decoder.ex_layers(innner_spec_sample))
     ex_loss = mse_loss(innner_spec_reconn, innner_spec_sample)
 
-    if bool(layered_smooth):
-        smooth_list = [innner_spec_reconn[:, None, :]]
-        for model in [decoder.ex_layers, encoder.ex_layers]:
-            x_pe = model.position_embedding_gate
-            for m in model.gate_weights.children():
-                x_pe = m(x_pe)
-                if isinstance(m, nn.Linear):
-                    smooth_list.append(x_pe.T[None, ...])
-            smooth_list.pop(-1)
-        x_spec = innner_spec_sample
-        x_spec = decoder.ex_layers.pad_spectra(x_spec)
-        for m in decoder.ex_layers.intensity_adjuster.children():
-            x_spec = m(x_spec)
-            if isinstance(m, nn.Conv1d):
-                smooth_list.append(x_spec)
-        smooth_list.pop(-1)
-
-        x_spec = decoder.ex_layers(innner_spec_sample)
-        x_spec = encoder.ex_layers.pad_spectra(x_spec)
-        for m in encoder.ex_layers.intensity_adjuster.children():
-            x_spec = m(x_spec)
-            if isinstance(m, nn.Conv1d):
-                smooth_list.append(x_spec)
-        smooth_list.pop(-1)
-        
-        smooth_loss_train = 0.0
-        for spec_out in smooth_list:
-            gaussian_smoothing = GaussianSmoothing(
-                channels=spec_out.size(1), kernel_size=gs_kernel_size, sigma=3.0, dim=1,
-                device = device
-            )
-            padding4smooth = nn.ReplicationPad1d(padding=(gs_kernel_size - 1)//2).to(device)
-            spec_out_padded = padding4smooth(spec_out)
-            spec_smoothed = gaussian_smoothing(spec_out_padded).detach()
-            smooth_loss_train = smooth_loss_train + mse_loss(spec_out, spec_smoothed)
-        if isinstance(layered_smooth, float):
-            ex_loss = ex_loss + smooth_loss_train * layered_smooth
-        else:
-            ex_loss = ex_loss + smooth_loss_train
-
     return ex_loss
 
 def smoothness_loss(batch_size, nstyle, decoder, gs_kernel_size, mse_loss=None, device=None, layered_smooth=False, encoder=None):
@@ -265,23 +224,24 @@ def smoothness_loss(batch_size, nstyle, decoder, gs_kernel_size, mse_loss=None, 
     z_sample = torch.randn(batch_size, nstyle, requires_grad=False, device=device)
     spec_out = decoder(z_sample)
     smooth_list = [spec_out]
-    x = z_sample
     if layered_smooth:
-        assert isinstance(decoder, FCDecoder)
-        smooth_models = [decoder]
-        if encoder is not None:
+        if isinstance(decoder, FCDecoder):
             assert isinstance(encoder, FCEncoder)
-            smooth_models.append(encoder)
-        for model in smooth_models:
+            smooth_models = [nn.Sequential(decoder, encoder)]
+            x0_list = [z_sample]
+        else:
+            assert isinstance(decoder, ExDecoder)
+            assert isinstance(encoder, ExEncoder)
+            smooth_models = [decoder.ex_layers.ene_pos, encoder.ex_layers.ene_pos]
+            x0_list = [decoder.enclosing_decoder(z_sample), spec_out]
+        for model, x0 in zip(smooth_models, x0_list):
+            x = x0
             for m in model.main.children():
                 x = m(x)
-                if isinstance(m, nn.Linear):
+                if isinstance(m, nn.Linear) and x.size(1) > gs_kernel_size:
                     smooth_list.append(x)
             smooth_list.pop(-1)
-        for m in decoder.main.children():
-            x = m(x)
-            if isinstance(m, nn.Linear):
-                smooth_list.append(x)
+
     gaussian_smoothing = GaussianSmoothing(
         channels=1, kernel_size=gs_kernel_size, sigma=3.0, dim=1,
         device = device
