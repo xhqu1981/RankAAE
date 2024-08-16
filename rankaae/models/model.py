@@ -1,3 +1,4 @@
+import itertools
 import math
 import numbers
 import torch
@@ -238,16 +239,14 @@ class ExLayers(nn.Module):
         super(ExLayers, self).__init__()
         self.compute_padding_params(dim_in, dim_out, gate_window, padding_mode)
 
-        gate_layers = [
+        self.ene_pos = nn.Sequential(*[
             FCEncoder(gate_latent_dim, dim_in, n_gate_encoder_layers, gate_hidden_size, activation),
             FCDecoder(gate_latent_dim, dim_out, activation, last_layer_activation=activation,
-                      n_layers=n_gate_decoder_layers, hidden_size=gate_hidden_size),
-            nn.Unflatten(1, [1, dim_out]),
-            two_hot_generator]
-        self.gate = nn.Sequential(*gate_layers) 
+                      n_layers=n_gate_decoder_layers, hidden_size=gate_hidden_size)]) 
+        self.two_hot_generator = two_hot_generator
 
         uw = torch.eye(gate_window, dtype=torch.float32, requires_grad=False)[:, None, :]
-        self.register_buffer('upend_weights', uw)
+        self.register_buffer('unfold_weights', uw)
 
         self.polynomial_weights = nn.Parameter(torch.zeros(
             [n_polynomial_order + 1, 1, n_polynomial_points, 1]), 
@@ -257,9 +256,10 @@ class ExLayers(nn.Module):
         self.register_buffer('exponents', exponents)
 
     def forward(self, spec):
-        ene_sel = self.gate(spec)
+        ep = self.ene_pos(spec)[:, None, :]
+        ene_sel = self.two_hot_generator(ep)
         spec = self.pad_spectra(spec)
-        spec = F.conv1d(spec, self.upend_weights)
+        spec = F.conv1d(spec, self.unfold_weights)
         spec = (spec * ene_sel).sum(dim=1)
         
         pw = F.interpolate(self.polynomial_weights, size=self.polynomial_interp_size, 
@@ -290,6 +290,9 @@ class ExLayers(nn.Module):
             pm = self.padding_mode.replace('zeros', 'constant')
             spec = F.pad(spec, self.num_pads, mode=pm)
         return spec
+    
+    def get_training_parameters(self):
+        return list(self.ene_pos.parameters()) + [self.exponents]
 
 
 class ExEncoder(nn.Module):
@@ -328,7 +331,7 @@ class ExEncoder(nn.Module):
         return z_gauss
     
     def get_training_parameters(self):
-        return self.ex_layers.parameters()
+        return self.ex_layers.get_training_parameters()
 
 
 class ExDecoder(nn.Module):
@@ -368,7 +371,7 @@ class ExDecoder(nn.Module):
         return spec
 
     def get_training_parameters(self):
-        return self.ex_layers.parameters()
+        return self.ex_layers.get_training_parameters()
 
 
 class DiscriminatorFC(nn.Module):
