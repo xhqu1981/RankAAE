@@ -214,7 +214,7 @@ class TwoHotGenerator(nn.Module):
             activation_function(activation, num_parameters=hidden_size, init=1.0),
             nn.BatchNorm1d(hidden_size, affine=False),
             nn.Conv1d(hidden_size, gate_window, kernel_size=1),
-            layers.append(nn.Softmax(dim=1))])
+            nn.Softmax(dim=1)])
         self.main = nn.Sequential(*layers)
     
     def forward(self, spec):
