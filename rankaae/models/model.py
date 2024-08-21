@@ -266,7 +266,7 @@ class ExLayers(nn.Module):
         pw = F.interpolate(self.polynomial_weights, size=self.polynomial_interp_size, 
                            mode='bicubic', align_corners=True)
         pw = pw.squeeze(dim=-1).squeeze(dim=1)
-        d_spec = torch.pow(spec[:, None, :], self.exponents).sum(dim=1) * pw[None, :, :]
+        d_spec = (torch.pow(spec[:, None, :], self.exponents) * pw[None, :, :]).sum(dim=1)
         spec = spec + d_spec
         return spec
 
