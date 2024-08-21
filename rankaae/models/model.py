@@ -241,7 +241,8 @@ class ExLayers(nn.Module):
 
         self.ene_pos = nn.Sequential(*[
             FCEncoder(gate_latent_dim, dim_in, n_gate_encoder_layers, gate_hidden_size, activation),
-            FCDecoder(gate_latent_dim, dim_out, activation, last_layer_activation=activation,
+            FCDecoder(gate_latent_dim, dim_out=dim_out, activation=activation, 
+                      last_layer_activation=activation,
                       n_layers=n_gate_decoder_layers, hidden_size=gate_hidden_size)]) 
         self.two_hot_generator = two_hot_generator
 
