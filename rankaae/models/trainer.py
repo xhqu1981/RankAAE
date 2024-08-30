@@ -396,8 +396,6 @@ class Trainer:
 
         recon_optimizer = opt_cls(
             params = [
-                {'params': self.decoder.get_training_parameters()}
-            ] if self.__dict__.get('reconn_decoder_only', False) else [
                 {'params': self.encoder.get_training_parameters()},
                 {'params': self.decoder.get_training_parameters()}                  
             ],
@@ -465,8 +463,6 @@ class Trainer:
             assert isinstance(self.decoder, ExDecoder)
             exscf_optimizer = opt_cls(
                 params = [
-                    {'params': self.encoder.get_training_parameters()}
-                ] if self.__dict__.get('exscf_encoder_only', False) else [
                     {'params': self.encoder.get_training_parameters()},
                     {'params': self.decoder.get_training_parameters()}                  
                 ],
