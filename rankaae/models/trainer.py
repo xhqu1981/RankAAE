@@ -90,7 +90,7 @@ class Trainer:
         
         # Record first line of loss values
         self.loss_logger.info( 
-                "Epoch,Train_L1,Val_L1,Train_ExSCF,Val_ExSCF,Train_D,Val_D,Train_G,Val_G,Train_Aux,Val_Aux,Train_Recon,"
+                "Epoch,Train_ExSCF,Val_ExSCF,Train_D,Val_D,Train_G,Val_G,Train_Aux,Val_Aux,Train_Recon,"
                 "Val_Recon,Train_Smooth,Val_Smooth,Train_Mutual_Info,Val_Mutual_Info"
         )
         
@@ -225,22 +225,6 @@ class Trainer:
                 else:
                     smooth_loss_train = torch.tensor(0.0)
 
-                # L1 regularization to encourage sparseness
-                if self.optimizers["l1_regularization"] is not None:
-                    self.zerograd()
-                    n_params = sum(
-                        [torch.numel(p) for p in 
-                         itertools.chain(self.encoder.get_training_parameters(), 
-                                         self.decoder.get_training_parameters())])
-                    l1_loss = torch.sum(torch.stack(
-                        [torch.sum(torch.abs(p)) for p in 
-                         itertools.chain(self.encoder.get_training_parameters(), 
-                                         self.decoder.get_training_parameters())])) / n_params
-                    l1_loss.backward()
-                    self.optimizers["l1_regularization"].step()
-                else:
-                    l1_loss = torch.tensor(0.0)
-
                 if self.optimizers["exscf"] is not None:
                     self.zerograd()
                     exscf_loss_train = exscf_loss(
@@ -341,7 +325,6 @@ class Trainer:
             if epoch % 10 == 0:
                 self.loss_logger.info(
                     f"{epoch:d},\t"
-                    f"{l1_loss.item():.6f},\t{l1_loss.item():.6f},\t"
                     f"{exscf_loss_train.item():.6f},\t{exscf_loss_val.item():.6f},\t"
                     f"{dis_loss_train.item():.6f},\t{dis_loss_val.item():.6f},\t"
                     f"{gen_loss_train.item():.6f},\t{gen_loss_val.item():.6f},\t"
@@ -477,15 +460,6 @@ class Trainer:
         else:
             adv_optimizer = None
 
-        if self.__dict__.get('lr_ratio_L1', -1) > 0:
-            l1_regularization = opt_cls(
-                params = [{'params': self.encoder.get_training_parameters()}, 
-                          {'params': self.decoder.get_training_parameters()}],
-                lr = self.lr_ratio_L1 * self.lr_base,
-                weight_decay = 0)
-        else:
-            l1_regularization = None
-
         if self.__dict__.get('lr_ratio_exscf', -1) > 0:
             assert isinstance(self.encoder, ExEncoder)
             assert isinstance(self.decoder, ExDecoder)
@@ -509,7 +483,6 @@ class Trainer:
             "discriminator": dis_optimizer,
             "generator": gen_optimizer,
             "adversarial": adv_optimizer,
-            "l1_regularization": l1_regularization,
             "exscf": exscf_optimizer
         }
 
