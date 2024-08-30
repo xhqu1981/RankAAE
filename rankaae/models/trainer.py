@@ -588,6 +588,7 @@ class Trainer:
                                 padding_mode=p.get('padding_mode', 'stretch'))
             decoder = ExDecoder(p.dim_out, enclosing_decoder=mt['Decoder'],
                                 two_hot_generator=two_hot_generator,
+                                gate_window=p.get('gate_window', 13),
                                 n_gate_encoder_layers=p.get('n_gate_encoder_layers', 3),
                                 n_gate_decoder_layers=p.get('n_gate_decoder_layers', 3),
                                 gate_hidden_size=p.get('gate_hidden_size', 64),
