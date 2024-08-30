@@ -293,7 +293,7 @@ class ExLayers(nn.Module):
         return spec
     
     def get_training_parameters(self):
-        return list(self.ene_pos.parameters()) + [self.exponents]
+        return list(self.ene_pos.parameters()) + [self.polynomial_weights]
 
 
 class ExEncoder(nn.Module):
