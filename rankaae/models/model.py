@@ -239,6 +239,8 @@ class ExLayers(nn.Module):
         super(ExLayers, self).__init__()
         self.compute_padding_params(dim_in, dim_out, gate_window, padding_mode)
 
+        assert two_hot_generator.gate_window == gate_window, \
+            f'pre-trained two-hot generate has a different window size {two_hot_generator.gate_window} instead of {gate_window}'
         self.ene_pos = nn.Sequential(*[
             FCEncoder(gate_latent_dim, dim_in, n_gate_encoder_layers, gate_hidden_size, activation),
             FCDecoder(gate_latent_dim, dim_out=dim_out, activation=activation, 
