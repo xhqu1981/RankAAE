@@ -222,7 +222,6 @@ def smoothness_loss(batch_size, nstyle, decoder, gs_kernel_size, mse_loss=None, 
         mse_loss = nn.MSELoss().to(device)
 
     z_sample = torch.randn(batch_size, nstyle, requires_grad=False, device=device)
-    spec_out = decoder(z_sample)
     if layered_smooth:
         smooth_list = []
         if isinstance(decoder, FCDecoder):
@@ -242,7 +241,11 @@ def smoothness_loss(batch_size, nstyle, decoder, gs_kernel_size, mse_loss=None, 
                     if isinstance(m, nn.Linear) and x.size(1) > gs_kernel_size:
                         smooth_list.append(x)
     else:
+        spec_out = decoder(z_sample)
         smooth_list = [spec_out]
+        if isinstance(decoder, ExDecoder):
+            assert isinstance(encoder, ExEncoder)
+            smooth_list.append[encoder.enclosing_encoder(spec_out)]
 
     gaussian_smoothing = GaussianSmoothing(
         channels=1, kernel_size=gs_kernel_size, sigma=3.0, dim=1,
