@@ -232,7 +232,7 @@ def smoothness_loss(batch_size, nstyle, decoder, gs_kernel_size, mse_loss=None, 
             assert isinstance(decoder, ExDecoder)
             assert isinstance(encoder, ExEncoder)
             smooth_models = [decoder.ex_layers.ene_pos, encoder.ex_layers.ene_pos]
-            x0_list = [decoder.enclosing_decoder(z_sample), spec_out]
+            x0_list = [decoder.enclosing_decoder(z_sample), decoder(z_sample)]
         for seq_model, x0 in zip(smooth_models, x0_list):
             x = x0
             for model in seq_model:
