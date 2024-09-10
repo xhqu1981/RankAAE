@@ -276,7 +276,8 @@ class Trainer:
             smooth_loss_val = smoothness_loss(
                 self.z_sample_batch_size, self.nstyle, self.decoder, 
                 gs_kernel_size=self.gau_kernel_size,
-                device=self.device
+                device=self.device,
+                encoder=self.encoder
             )
 
             mutual_info_loss_val =  mutual_info_loss(
