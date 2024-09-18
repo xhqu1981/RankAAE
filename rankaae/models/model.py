@@ -146,9 +146,11 @@ class FCEncoder(nn.Module):
             nn.BatchNorm1d(nstyle, affine=False),])
             # add this batchnorm layer to make sure the output is standardized.
         self.main = nn.Sequential(*sequential_layers)
+        self.pre_trained = False
 
     def forward(self, spec):
-        
+        if self.pre_trained:
+            self.eval()
         z_gauss = self.main(spec)
         # need to call spec.unsqueeze to accomondate the channel sizes.
 
@@ -190,8 +192,11 @@ class FCDecoder(nn.Module):
         self.dim_out = dim_out
         self.nstyle = nstyle
         self.debug = debug
+        self.pre_trained = False
 
     def forward(self, z_gauss):
+        if self.pre_trained:
+            self.eval()
         spec = self.main(z_gauss)
         return spec
     
@@ -217,8 +222,11 @@ class TwoHotGenerator(nn.Module):
             nn.Conv1d(hidden_size, gate_window, kernel_size=1),
             nn.Softmax(dim=1)])
         self.main = nn.Sequential(*layers)
+        self.pre_trained = False
     
     def forward(self, spec):
+        if self.pre_trained:
+            self.eval()
         return self.main(spec)
 
 

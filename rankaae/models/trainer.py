@@ -543,8 +543,11 @@ class Trainer:
             # load encoder, decoder and discriminator from file
             prev_fn = os.path.join(p.initial_guess_dir, *work_dir.split('/')[-2:], 'final.pt')
             logger.info(f"Reading model initial guess from {prev_fn}")
-            mt = torch.load(prev_fn, map_location=device)
-            two_hot_generator = torch.load(p.twohot_fn, map_location=device)
+            mt = torch.load(prev_fn, map_location=device, weights_only=True)
+            mt['Encoder'].pre_trained = True
+            mt['Decoder'].pre_trained = True
+            two_hot_generator = torch.load(p.twohot_fn, map_location=device, weights_only=True)
+            two_hot_generator.pre_train = True
             encoder = ExEncoder(p.dim_in, enclosing_encoder=mt['Encoder'],
                                 two_hot_generator=two_hot_generator,
                                 gate_window=p.get('gate_window', 13),
