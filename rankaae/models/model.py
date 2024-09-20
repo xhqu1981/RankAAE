@@ -255,6 +255,7 @@ class ExLayers(nn.Module):
                       last_layer_activation=activation,
                       n_layers=n_gate_decoder_layers, hidden_size=gate_hidden_size)]) 
         self.two_hot_generator = two_hot_generator
+        self.gate_window = gate_window
 
         uw = torch.eye(gate_window, dtype=torch.float32, requires_grad=False)[:, None, :]
         self.register_buffer('unfold_weights', uw)
@@ -268,6 +269,7 @@ class ExLayers(nn.Module):
 
     def forward(self, spec):
         ep = self.ene_pos(spec)[:, None, :]
+        ep = (ep * self.gate_window / 2.0) + (self.gate_window / 2.0)
         ene_sel = self.two_hot_generator(ep)
         spec = self.pad_spectra(spec)
         spec = F.conv1d(spec, self.unfold_weights)
