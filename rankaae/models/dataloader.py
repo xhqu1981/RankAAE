@@ -3,6 +3,7 @@ import torch
 import pandas as pd
 from torchvision import transforms
 import numpy as np
+import math
 
 
 class AuxSpectraDataset(Dataset):
@@ -11,7 +12,7 @@ class AuxSpectraDataset(Dataset):
         self.metadata = self._process_metadata(csv_fn, train_val_test_ratios)
         full_df = pd.read_csv(csv_fn, index_col=[0, 1], comment='#')
         self.grid = np.array([float(col.strip('ENE_')) for col in full_df.columns if col.startswith('ENE_')])
-        n_train_val_test = [int(len(full_df) * ratio)
+        n_train_val_test = [math.ceil(len(full_df) * ratio)
                             for ratio in train_val_test_ratios]
         n_train_val_test[-1] = int(len(full_df)) - sum(n_train_val_test[:-1])
         portion_options = ['train', 'val', 'test']
