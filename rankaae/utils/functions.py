@@ -246,6 +246,8 @@ def smoothness_loss(batch_size, nstyle, decoder, gs_kernel_size, mse_loss=None, 
         if isinstance(decoder, ExDecoder):
             assert isinstance(encoder, ExEncoder)
             smooth_list.append(encoder.ex_layers(spec_out))
+            smooth_list.append(encoder.ex_layers.ene_pos(spec_out))
+            smooth_list.append(decoder.ex_layers.ene_pos(decoder.enclosing_decoder(z_sample)))
 
     gaussian_smoothing = GaussianSmoothing(
         channels=1, kernel_size=gs_kernel_size, sigma=3.0, dim=1,
