@@ -225,7 +225,7 @@ def energy_position_ordering_loss(spec_in, encoder: ExEncoder, decoder: ExDecode
     good_order2 = ep2[:, 1:] - ep2[:, :-1]
     loss2: torch.FloatTensor = - good_order2[good_order2 < margin]
 
-    return loss1 + loss2
+    return loss1.mean() + loss2.mean()
 
 
 
