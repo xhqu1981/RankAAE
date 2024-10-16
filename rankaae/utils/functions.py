@@ -212,6 +212,23 @@ def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder, mse
 
     return ex_loss
 
+
+def energy_position_ordering_loss(spec_in, encoder: ExEncoder, decoder: ExDecoder, gate_window: int):
+    ep1 = encoder.ex_layers.ene_pos(spec_in)
+    good_order1 = ep1[:, 1:] - ep1[:, :-1]
+    margin = - (1.0 / gate_window)
+    loss1: torch.FloatTensor = - good_order1[good_order1 < margin]
+
+    z = encoder(spec_in)
+    s_inner = decoder.enclosing_decoder(z)
+    ep2 = decoder.ex_layers.ene_pos(s_inner)
+    good_order2 = ep2[:, 1:] - ep2[:, :-1]
+    loss2: torch.FloatTensor = - good_order2[good_order2 < margin]
+
+    return loss1 + loss2
+
+
+
 def smoothness_loss(batch_size, nstyle, decoder, gs_kernel_size, mse_loss=None, device=None, layered_smooth=False, encoder=None):
     """
     Return the smoothness loss.

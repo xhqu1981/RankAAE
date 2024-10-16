@@ -30,6 +30,7 @@ from rankaae.models.model import (
 from rankaae.models.dataloader import get_dataloaders
 from rankaae.utils.parameter import AE_CLS_DICT, OPTIM_DICT, Parameters
 from rankaae.utils.functions import (
+    energy_position_ordering_loss,
     kendall_constraint, 
     recon_loss, 
     mutual_info_loss, 
@@ -237,6 +238,15 @@ class Trainer:
                     self.optimizers["exscf"].step()
                 else:
                     exscf_loss_train = torch.tensor(0.0)
+
+                if self.optimizers["ene_order"] is not None:
+                    self.zerograd()
+                    ene_order_loss_train = energy_position_ordering_loss(
+                        spec_in, self.encoder, self.decoder, mse_loss, self.__dict__.get('gate_window', 13))
+                    ene_order_loss_train.backward()
+                    self.optimizers["ene_order"].step()
+                else:
+                    ene_order_loss_train = torch.tensor(0.0)
                   
                 # Init gradients
                 self.zerograd()
@@ -475,6 +485,19 @@ class Trainer:
         else:
             exscf_optimizer = None
 
+        if self.__dict__.get('lr_ratio_eneorder', -1) > 0:
+            assert isinstance(self.encoder, ExEncoder)
+            assert isinstance(self.decoder, ExDecoder)
+            ene_order_optimizer = opt_cls(
+                params = [
+                    {'params': self.encoder.get_training_parameters()},
+                    {'params': self.decoder.get_training_parameters()}                  
+                ],
+                lr = self.lr_ratio_eneorder * self.lr_base,
+                weight_decay = self.weight_decay)
+        else:
+            ene_order_optimizer = None
+
         self.optimizers = {
             "reconstruction": recon_optimizer,
             "mutual_info": mutual_info_optimizer,
@@ -483,7 +506,8 @@ class Trainer:
             "discriminator": dis_optimizer,
             "generator": gen_optimizer,
             "adversarial": adv_optimizer,
-            "exscf": exscf_optimizer
+            "exscf": exscf_optimizer,
+            "ene_order": ene_order_optimizer
         }
 
 
