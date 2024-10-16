@@ -242,7 +242,7 @@ class Trainer:
                 if self.optimizers["ene_order"] is not None:
                     self.zerograd()
                     ene_order_loss_train = energy_position_ordering_loss(
-                        spec_in, self.encoder, self.decoder, mse_loss, self.__dict__.get('gate_window', 13))
+                        spec_in, self.encoder, self.decoder, self.__dict__.get('gate_window', 13))
                     ene_order_loss_train.backward()
                     self.optimizers["ene_order"].step()
                 else:
