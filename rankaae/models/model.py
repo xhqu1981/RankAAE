@@ -205,29 +205,25 @@ class FCDecoder(nn.Module):
 
 
 class TwoHotGenerator(nn.Module):
-    def __init__(self, gate_window=13, hidden_size=16, n_layers=3, activation='Swish'):
+    def __init__(self, gate_window):
         super(TwoHotGenerator, self).__init__()
         self.gate_window = gate_window
-        assert n_layers >= 2
-
-        layers = [nn.Conv1d(1, hidden_size, kernel_size=1)]
-        for _ in range(n_layers - 2):
-            layers.extend([
-                activation_function(activation, num_parameters=hidden_size, init=1.0),
-                nn.BatchNorm1d(hidden_size, affine=False),
-                nn.Conv1d(hidden_size, hidden_size, kernel_size=1)])
-        layers.extend([
-            activation_function(activation, num_parameters=hidden_size, init=1.0),
-            nn.BatchNorm1d(hidden_size, affine=False),
-            nn.Conv1d(hidden_size, gate_window, kernel_size=1),
-            nn.Softmax(dim=1)])
-        self.main = nn.Sequential(*layers)
-        self.pre_trained = False
     
     def forward(self, spec):
-        if self.pre_trained:
-            self.eval()
-        return self.main(spec)
+        spec = torch.clamp(spec, min=0.0, 
+                           max=(self.gate_window - 1.0 - 1.0E-6))
+        lower_pos = torch.floor(spec)
+        i_lower_pos = lower_pos.to(torch.long)
+        
+        grid = torch.meshgrid([torch.arange(dim_size) for dim_size in spec.size()], indexing='ij')
+        lower_indices = grid + (i_lower_pos,)
+        upper_indices = grid + (i_lower_pos + 1,)
+        upper_frac = spec - lower_pos
+
+        twohot = torch.zeros(spec.size() + (self.gate_window,), dtype=torch.float32, requires_grad=False)
+        twohot[lower_indices] = 1.0 - upper_frac
+        twohot[upper_indices] = upper_frac
+        return twohot
 
 
 class ExLayers(nn.Module):
