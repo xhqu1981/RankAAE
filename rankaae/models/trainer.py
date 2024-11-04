@@ -575,7 +575,10 @@ class Trainer:
                                                   nn.Conv1d, nn.PReLU, nn.Softplus, nn.SiLU, nn.Softmax])
             mt = torch.load(prev_fn, map_location=device, weights_only=True)
             update_pretrained_bn = p.get('update_pretrained_bn', False)
-            if not update_pretrained_bn:
+            if update_pretrained_bn:
+                mt['Encoder'].pre_trained = False
+                mt['Decoder'].pre_trained = False
+            else:
                 mt['Encoder'].pre_trained = True
                 mt['Decoder'].pre_trained = True
             encoder = ExEncoder(p.dim_in, enclosing_encoder=mt['Encoder'],
