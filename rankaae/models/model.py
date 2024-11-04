@@ -210,18 +210,20 @@ class TwoHotGenerator(nn.Module):
         self.gate_window = gate_window
     
     def forward(self, spec):
+        spec_size = spec.size()
+        assert len(spec_size) == 2
         spec = torch.clamp(spec, min=0.0, 
                            max=(self.gate_window - 1.0 - 1.0E-6))
         lower_pos = torch.floor(spec)
         i_lower_pos = lower_pos.to(torch.long)
         
         grid = torch.meshgrid([torch.arange(dim_size, device=spec.device) 
-                               for dim_size in spec.size()], indexing='ij')
-        lower_indices = grid + (i_lower_pos,)
-        upper_indices = grid + (i_lower_pos + 1,)
-        upper_frac = spec - lower_pos
+                               for dim_size in spec_size], indexing='ij')
+        lower_indices = (grid[0], i_lower_pos, grid[1]) 
+        upper_indices = (grid[0], i_lower_pos + 1, grid[1])
+        upper_frac = spec - i_lower_pos.to(torch.float32)
 
-        twohot = torch.zeros(spec.size() + (self.gate_window,), 
+        twohot = torch.zeros([spec_size[0], self.gate_window, spec_size[1]], 
                              dtype=torch.float32, requires_grad=False, device=spec.device)
         twohot[lower_indices] = 1.0 - upper_frac
         twohot[upper_indices] = upper_frac
@@ -232,7 +234,6 @@ class ExLayers(nn.Module):
     def __init__(self,
                  dim_in: int,
                  dim_out: int,
-                 two_hot_generator: TwoHotGenerator,
                  gate_window=13,
                  n_gate_encoder_layers=3,
                  n_gate_decoder_layers=3,
@@ -245,14 +246,12 @@ class ExLayers(nn.Module):
         super(ExLayers, self).__init__()
         self.compute_padding_params(dim_in, dim_out, gate_window, padding_mode)
 
-        assert two_hot_generator.gate_window == gate_window, \
-            f'pre-trained two-hot generate has a different window size {two_hot_generator.gate_window} instead of {gate_window}'
         self.ene_pos = nn.Sequential(*[
             FCEncoder(gate_latent_dim, dim_in, n_gate_encoder_layers, gate_hidden_size, activation),
             FCDecoder(gate_latent_dim, dim_out=dim_out, activation=activation, 
                       last_layer_activation=activation,
                       n_layers=n_gate_decoder_layers, hidden_size=gate_hidden_size)]) 
-        self.two_hot_generator = two_hot_generator
+        self.two_hot_generator = TwoHotGenerator(gate_window)
         self.gate_window = gate_window
 
         uw = torch.eye(gate_window, dtype=torch.float32, requires_grad=False)[:, None, :]
@@ -266,7 +265,7 @@ class ExLayers(nn.Module):
         self.register_buffer('exponents', exponents)
 
     def forward(self, spec):
-        ep = self.ene_pos(spec)[:, None, :]
+        ep = self.ene_pos(spec)
         ep = (ep * self.gate_window / 2.0) + (self.gate_window / 2.0)
         ene_sel = self.two_hot_generator(ep)
         spec = self.pad_spectra(spec)
