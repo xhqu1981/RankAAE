@@ -215,12 +215,14 @@ class TwoHotGenerator(nn.Module):
         lower_pos = torch.floor(spec)
         i_lower_pos = lower_pos.to(torch.long)
         
-        grid = torch.meshgrid([torch.arange(dim_size) for dim_size in spec.size()], indexing='ij')
+        grid = torch.meshgrid([torch.arange(dim_size, device=spec.device) 
+                               for dim_size in spec.size()], indexing='ij')
         lower_indices = grid + (i_lower_pos,)
         upper_indices = grid + (i_lower_pos + 1,)
         upper_frac = spec - lower_pos
 
-        twohot = torch.zeros(spec.size() + (self.gate_window,), dtype=torch.float32, requires_grad=False)
+        twohot = torch.zeros(spec.size() + (self.gate_window,), 
+                             dtype=torch.float32, requires_grad=False, device=spec.device)
         twohot[lower_indices] = 1.0 - upper_frac
         twohot[upper_indices] = upper_frac
         return twohot
