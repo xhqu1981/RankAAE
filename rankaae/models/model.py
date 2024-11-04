@@ -300,16 +300,12 @@ class ExLayers(nn.Module):
             pm = self.padding_mode.replace('zeros', 'constant')
             spec = F.pad(spec, self.num_pads, mode=pm)
         return spec
-    
-    def get_training_parameters(self):
-        return list(self.ene_pos.parameters()) + [self.polynomial_weights]
 
 
 class ExEncoder(nn.Module):
     def __init__(self,
                  dim_in: int,
                  enclosing_encoder: FCEncoder,
-                 two_hot_generator: TwoHotGenerator,
                  gate_window=13,
                  n_gate_encoder_layers=3,
                  n_gate_decoder_layers=3,
@@ -323,7 +319,6 @@ class ExEncoder(nn.Module):
         self.ex_layers = ExLayers(
             dim_in=dim_in, 
             dim_out=enclosing_encoder.dim_in,
-            two_hot_generator=two_hot_generator,
             gate_window=gate_window, 
             n_gate_encoder_layers=n_gate_encoder_layers,
             n_gate_decoder_layers=n_gate_decoder_layers,
@@ -341,14 +336,13 @@ class ExEncoder(nn.Module):
         return z_gauss
     
     def get_training_parameters(self):
-        return self.ex_layers.get_training_parameters()
+        return self.ex_layers.parameters()
 
 
 class ExDecoder(nn.Module):
     def __init__(self,
                  dim_out: int,
                  enclosing_decoder: FCDecoder,
-                 two_hot_generator: TwoHotGenerator,
                  gate_window=13,
                  n_gate_encoder_layers=3,
                  n_gate_decoder_layers=3,
@@ -362,7 +356,6 @@ class ExDecoder(nn.Module):
         self.ex_layers = ExLayers(
             dim_in=enclosing_decoder.dim_out, 
             dim_out=dim_out,
-            two_hot_generator=two_hot_generator,
             gate_window=gate_window,
             n_gate_encoder_layers=n_gate_encoder_layers,
             n_gate_decoder_layers=n_gate_decoder_layers,
@@ -381,7 +374,7 @@ class ExDecoder(nn.Module):
         return spec
 
     def get_training_parameters(self):
-        return self.ex_layers.get_training_parameters()
+        return self.ex_layers.parameters()
 
 
 class DiscriminatorFC(nn.Module):

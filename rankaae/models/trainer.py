@@ -576,10 +576,7 @@ class Trainer:
             mt = torch.load(prev_fn, map_location=device, weights_only=True)
             mt['Encoder'].pre_trained = True
             mt['Decoder'].pre_trained = True
-            two_hot_generator = torch.load(p.twohot_fn, map_location=device, weights_only=True)
-            two_hot_generator.pre_trained = True
             encoder = ExEncoder(p.dim_in, enclosing_encoder=mt['Encoder'],
-                                two_hot_generator=two_hot_generator,
                                 gate_window=p.get('gate_window', 13),
                                 n_gate_encoder_layers=p.get('n_gate_encoder_layers', 3),
                                 n_gate_decoder_layers=p.get('n_gate_decoder_layers', 3),
@@ -590,7 +587,6 @@ class Trainer:
                                 n_polynomial_points=p.get('n_polynomial_points', 10),
                                 padding_mode=p.get('padding_mode', 'stretch'))
             decoder = ExDecoder(p.dim_out, enclosing_decoder=mt['Decoder'],
-                                two_hot_generator=two_hot_generator,
                                 gate_window=p.get('gate_window', 13),
                                 n_gate_encoder_layers=p.get('n_gate_encoder_layers', 3),
                                 n_gate_decoder_layers=p.get('n_gate_decoder_layers', 3),
