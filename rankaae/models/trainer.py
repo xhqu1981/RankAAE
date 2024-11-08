@@ -590,7 +590,9 @@ class Trainer:
                                 activation=p.get('ex_activation', 'Swish'),
                                 n_polynomial_order=p.get('n_polynomial_order', 3),
                                 n_polynomial_points=p.get('n_polynomial_points', 10),
-                                padding_mode=p.get('padding_mode', 'stretch'))
+                                padding_mode=p.get('padding_mode', 'stretch'),
+                                transformer_dropout=p.get('transformer_dropout', 0.1),
+                                transformer_nheads=p.get('transformer_nheads', 0))
             decoder = ExDecoder(p.dim_out, enclosing_decoder=mt['Decoder'],
                                 gate_window=p.get('gate_window', 13),
                                 n_gate_encoder_layers=p.get('n_gate_encoder_layers', 3),
@@ -600,7 +602,9 @@ class Trainer:
                                 activation=p.get('ex_activation', 'Swish'),
                                 n_polynomial_order=p.get('n_polynomial_order', 3),
                                 n_polynomial_points=p.get('n_polynomial_points', 10),
-                                padding_mode=p.get('padding_mode', 'stretch'))
+                                padding_mode=p.get('padding_mode', 'stretch'),
+                                transformer_dropout=p.get('transformer_dropout', 0.1),
+                                transformer_nheads=p.get('transformer_nheads', 0)))
             discriminator = mt['Style Discriminator']
         else:
             # Generate encoder, decoder and discriminator

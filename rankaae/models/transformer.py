@@ -65,7 +65,8 @@ class TransformerEnergyPositionPredictor(nn.Module):
         self.decoder = nn.Linear(d_model, 1)
 
 
-    def forward(self, spec):
+    def forward(self, spec: torch.FloatTensor):
+        spec = spec.unsqueeze(dim=-1)
         src = self.input_emb(spec) * math.sqrt(self.d_model)
         src = self.pos_encoder(src)
         output = self.encoder(src)

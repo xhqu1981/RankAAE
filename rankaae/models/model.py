@@ -245,12 +245,12 @@ class ExLayers(nn.Module):
                  n_polynomial_order=3,
                  n_polynomial_points=10,
                  padding_mode='stretch',
-                 use_transformer=False,
                  transformer_dropout=0.1,
-                 transformer_nheads=2):
+                 transformer_nheads=0):
         super(ExLayers, self).__init__()
         self.compute_padding_params(dim_in, dim_out, gate_window, padding_mode)
 
+        use_transformer = transformer_nheads > 0
         if use_transformer:
             self.ene_pos = TransformerEnergyPositionPredictor(
                 n_grid=dim_in,
@@ -330,7 +330,9 @@ class ExEncoder(nn.Module):
                  activation='Swish',
                  n_polynomial_order=3,
                  n_polynomial_points=10,
-                 padding_mode='stretch'):
+                 padding_mode='stretch',
+                 transformer_dropout=0.1,
+                 transformer_nheads=0):
         super(ExEncoder, self).__init__()
         self.ex_layers = ExLayers(
             dim_in=dim_in, 
@@ -343,7 +345,9 @@ class ExEncoder(nn.Module):
             activation=activation,
             n_polynomial_order=n_polynomial_order,
             n_polynomial_points=n_polynomial_points,
-            padding_mode=padding_mode)
+            padding_mode=padding_mode,
+            transformer_dropout=transformer_dropout,
+            transformer_nheads=transformer_nheads)
         self.enclosing_encoder = enclosing_encoder
 
     def forward(self, spec):
@@ -367,7 +371,9 @@ class ExDecoder(nn.Module):
                  activation='Swish',
                  n_polynomial_order=3,
                  n_polynomial_points=10,
-                 padding_mode='stretch'):
+                 padding_mode='stretch',
+                 transformer_dropout=0.1,
+                 transformer_nheads=0):
         super(ExDecoder, self).__init__()
         self.ex_layers = ExLayers(
             dim_in=enclosing_decoder.dim_out, 
@@ -380,7 +386,9 @@ class ExDecoder(nn.Module):
             activation=activation,
             n_polynomial_order=n_polynomial_order,
             n_polynomial_points=n_polynomial_points,
-            padding_mode=padding_mode)
+            padding_mode=padding_mode,
+            transformer_dropout=transformer_dropout,
+            transformer_nheads=transformer_nheads)
         self.enclosing_decoder = enclosing_decoder
         self.nstyle = enclosing_decoder.nstyle
 
