@@ -252,6 +252,7 @@ class ExLayers(nn.Module):
 
         use_transformer = transformer_nheads > 0
         if use_transformer:
+            assert n_gate_decoder_layers == n_gate_encoder_layers
             self.ene_pos = TransformerEnergyPositionPredictor(
                 n_grid=dim_in,
                 d_model=gate_latent_dim,
