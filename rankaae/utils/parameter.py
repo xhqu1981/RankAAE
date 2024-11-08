@@ -20,7 +20,8 @@ OPTIM_DICT = {
     "SGD": optim.SGD,
     "AdaBound": ex_optim.AdaBound, 
     "RAdam": ex_optim.RAdam,
-    "Lamb": ex_optim.Lamb
+    "Lamb": ex_optim.Lamb,
+    "Soap": ex_optim.SOAP
 }
 
 
