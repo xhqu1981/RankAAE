@@ -22,7 +22,7 @@ dependencies = [
   "numpy~=1.26",
   "pyfitit~=3.0.5",
   "torch~=2.4",
-  "pytorch_optimizer>=3.0.1",
+  "pytorch_optimizer>=3.2",
   "torchvision>0.15",
   "scipy>=1.14",
   "matplotlib~=3.7.1",
