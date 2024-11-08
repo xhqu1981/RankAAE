@@ -71,5 +71,5 @@ class TransformerEnergyPositionPredictor(nn.Module):
         src = self.pos_encoder(src)
         output = self.encoder(src)
         output: torch.FloatTensor = self.decoder(output)
-        ene_pos = output.squeeze(dim=1)
+        ene_pos = output.squeeze(dim=-1)
         return ene_pos
