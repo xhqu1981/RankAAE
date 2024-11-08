@@ -260,7 +260,7 @@ class ExLayers(nn.Module):
                 nlayers=n_gate_encoder_layers,
                 dropout=transformer_dropout,
                 batch_first=True,
-                activation='relu')
+                activation=activation)
         else:
             self.ene_pos = nn.Sequential(*[
                 FCEncoder(gate_latent_dim, dim_in, n_gate_encoder_layers, gate_hidden_size, activation),
