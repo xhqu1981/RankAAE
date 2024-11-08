@@ -604,7 +604,7 @@ class Trainer:
                                 n_polynomial_points=p.get('n_polynomial_points', 10),
                                 padding_mode=p.get('padding_mode', 'stretch'),
                                 transformer_dropout=p.get('transformer_dropout', 0.1),
-                                transformer_nheads=p.get('transformer_nheads', 0)))
+                                transformer_nheads=p.get('transformer_nheads', 0))
             discriminator = mt['Style Discriminator']
         else:
             # Generate encoder, decoder and discriminator
