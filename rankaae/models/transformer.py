@@ -53,7 +53,7 @@ class TransformerEnergyPositionPredictor(nn.Module):
         super(TransformerEnergyPositionPredictor, self).__init__()
         self.pos_encoder = PositionalEncoding(d_model, dropout, 
                                               max_len=n_grid, batch_first=batch_first)
-        encoder_layer = nn.TransformerEncoderLayer(d_model=512, 
+        encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, 
                                                    nhead=nhead, 
                                                    dim_feedforward=dim_feedforward,
                                                    dropout=dropout,

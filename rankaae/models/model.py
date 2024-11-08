@@ -6,6 +6,8 @@ from torch import nn
 from torch.autograd import Function
 import torch.nn.functional as F
 
+from rankaae.models.transformer import TransformerEnergyPositionPredictor
+
 
 class Swish(nn.Module):
     def __init__(self, num_parameters, init=0.25, dtype=torch.float32):
@@ -242,15 +244,29 @@ class ExLayers(nn.Module):
                  activation='Swish',
                  n_polynomial_order=3,
                  n_polynomial_points=10,
-                 padding_mode='stretch'):
+                 padding_mode='stretch',
+                 use_transformer=False,
+                 transformer_dropout=0.1,
+                 transformer_nheads=2):
         super(ExLayers, self).__init__()
         self.compute_padding_params(dim_in, dim_out, gate_window, padding_mode)
 
-        self.ene_pos = nn.Sequential(*[
-            FCEncoder(gate_latent_dim, dim_in, n_gate_encoder_layers, gate_hidden_size, activation),
-            FCDecoder(gate_latent_dim, dim_out=dim_out, activation=activation, 
-                      last_layer_activation=activation,
-                      n_layers=n_gate_decoder_layers, hidden_size=gate_hidden_size)]) 
+        if use_transformer:
+            self.ene_pos = TransformerEnergyPositionPredictor(
+                n_grid=dim_in,
+                d_model=gate_latent_dim,
+                nhead=transformer_nheads,
+                dim_feedforward=gate_hidden_size,
+                nlayers=n_gate_encoder_layers,
+                dropout=transformer_dropout,
+                batch_first=True,
+                activation='relu')
+        else:
+            self.ene_pos = nn.Sequential(*[
+                FCEncoder(gate_latent_dim, dim_in, n_gate_encoder_layers, gate_hidden_size, activation),
+                FCDecoder(gate_latent_dim, dim_out=dim_out, activation=activation, 
+                        last_layer_activation=activation,
+                        n_layers=n_gate_decoder_layers, hidden_size=gate_hidden_size)]) 
         self.two_hot_generator = TwoHotGenerator(gate_window)
         self.gate_window = gate_window
 
