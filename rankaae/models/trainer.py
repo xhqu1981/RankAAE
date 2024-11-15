@@ -249,7 +249,7 @@ class Trainer:
                         exscf_loss_train = exscf_loss(
                             -1, -1, self.encoder, self.decoder,
                             mse_loss=mse_loss, device=self.device, 
-                            ex_spec_in=ex_train_iter.__next__()[0])
+                            ex_spec_in=ex_train_iter.__next__()[0].to(self.device))
                     exscf_loss_train.backward()
                     self.optimizers["exscf"].step()
                 else:
@@ -284,6 +284,7 @@ class Trainer:
             spec_in_val = spec_in_val.to(self.device)
             if self.ex_train_loader is not None:
                 ex_spec_in_val, _ = [torch.cat(x, dim=0) for x in zip(*list(self.ex_val_loader))]
+                ex_spec_in_val = ex_spec_in_val.to(self.device)
             else:
                 ex_spec_in_val = None
             z = self.encoder(spec_in_val)
