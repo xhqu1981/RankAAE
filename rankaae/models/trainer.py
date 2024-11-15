@@ -685,7 +685,8 @@ class Trainer:
         trainer = Trainer(
             encoder, decoder, discriminator, device, dl_train, dl_val,
             verbose=verbose, work_dir=work_dir,
-            config_parameters=p, logger=logger, loss_logger=loss_logger
+            config_parameters=p, logger=logger, loss_logger=loss_logger,
+            ex_train_loader=dl_train_ex, ex_val_loader=dl_val_ex
         )
         return trainer
 
