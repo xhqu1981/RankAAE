@@ -241,7 +241,7 @@ class Trainer:
 
                 if self.optimizers["exscf"] is not None:
                     self.zerograd()
-                    if self.ex_train_loader is not None:
+                    if self.ex_train_loader is None:
                         exscf_loss_train = exscf_loss(
                             self.z_sample_batch_size, self.nstyle, self.encoder, self.decoder,
                             mse_loss=mse_loss, device=self.device)
