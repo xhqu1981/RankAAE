@@ -594,7 +594,7 @@ class Trainer:
         dl_train, dl_val, _ = get_dataloaders(
             csv_fn, p.batch_size, (train_ratio, validation_ratio, test_ratio), n_aux=p.n_aux)
         
-        if 'ex_csv_fn' in p:
+        if 'ex_csv_fn' in p.__dict__:
             dl_train_ex, dl_val_ex, _ = get_dataloaders(
             p.ex_csv_fn, p.batch_size, (train_ratio, validation_ratio, test_ratio), n_aux=p.n_aux)
             ex_batch_size = math.ceil(p.batch_size * len(dl_train_ex) / len(dl_train))
