@@ -231,7 +231,7 @@ class MatchBN:
 
     def __call__(self):
         z_sample = torch.randn(self.batch_size, self.nstyle, 
-                               requires_grad=False, device=self.decoder)
+                               requires_grad=False, device=self.device)
         spec_outer = self.decoder(z_sample).clone().detach()
         x: torch.FloatTensor = self.encoder.ex_layers(spec_outer)
         loss = []
