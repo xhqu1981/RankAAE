@@ -1,4 +1,4 @@
-from typing import no_type_check_decorator
+from typing import List, no_type_check_decorator
 import torch
 from torch import nn
 import numpy as np
@@ -211,6 +211,41 @@ def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder, mse
     ex_loss = mse_loss(innner_spec_reconn, innner_spec_sample)
 
     return ex_loss
+
+
+class MatchBN:
+    def __init__(self, encoder: ExEncoder, decoder: ExDecoder, batch_size, loss_func=nn.MSELoss()):
+        super(MatchBN, self).__init__()
+        self.target_mean_list: List[torch.FloatTensor] = []
+        self.target_var_list: List[torch.FloatTensor] = []
+        for m in encoder.enclosing_encoder.main:
+            if isinstance(m, nn.BatchNorm1d):
+                self.target_mean_list.append(m.running_mean.clone().detach())
+                self.target_var_list.append(m.running_var.clone().detach())
+        self.loss_func = loss_func
+        self.encoder = encoder
+        self.decoder = decoder
+        self.batch_size = batch_size
+        self.nstyle = self.decoder.enclosing_decoder.nstyle
+        self.device = self.target_mean_list[-1].device
+
+    def __call__(self):
+        z_sample = torch.randn(self.batch_size, self.nstyle, 
+                               requires_grad=False, device=self.decoder)
+        spec_outer = self.decoder(z_sample).clone().detach()
+        x: torch.FloatTensor = self.encoder.ex_layers(spec_outer)
+        loss = []
+        i = []
+        for m in self.encoder.enclosing_encoder.main:
+            if isinstance(m, nn.BatchNorm1d):
+                 tmean = self.target_mean_list[i]
+                 tvar = self.target_var_list[i]
+                 i = i + 1
+                 loss.append(self.loss_func(x.mean(dim=0), tmean) + 
+                             self.loss_func(x.var(dim=0), tvar))
+            x = m(x)
+        loss = torch.stack(loss).mean()
+        return loss
 
 
 def energy_position_ordering_loss(spec_in, encoder: ExEncoder, decoder: ExDecoder, gate_window: int):

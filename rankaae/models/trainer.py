@@ -30,6 +30,7 @@ from rankaae.models.model import (
 from rankaae.models.dataloader import get_dataloaders
 from rankaae.utils.parameter import AE_CLS_DICT, OPTIM_DICT, Parameters
 from rankaae.utils.functions import (
+    MatchBN,
     energy_position_ordering_loss,
     kendall_constraint, 
     recon_loss, 
@@ -73,6 +74,9 @@ class Trainer:
         self.__dict__.update(config_parameters.to_dict())
         self.load_optimizers()
         self.load_schedulers()
+
+        if self.__dict__.get('lr_ratio_bnmatch', -1) > 0:
+            self.bnmatch_loss = MatchBN(self.encoder, self.decoder, self.z_sample_batch_size)
 
 
     def train(self, callback=None):
@@ -247,6 +251,14 @@ class Trainer:
                     self.optimizers["ene_order"].step()
                 else:
                     ene_order_loss_train = torch.tensor(0.0)
+
+                if self.optimizers["bnmatch"] is not None:
+                    self.zerograd()
+                    bnmatch_loss_train = self.bnmatch_loss()
+                    bnmatch_loss_train.backward()
+                    self.optimizers["bnmatch"].step()
+                else:
+                    bnmatch_loss_train = torch.tensor(0.0)
                   
                 # Init gradients
                 self.zerograd()
@@ -498,6 +510,19 @@ class Trainer:
         else:
             ene_order_optimizer = None
 
+        if self.__dict__.get('lr_ratio_bnmatch', -1) > 0:
+            assert isinstance(self.encoder, ExEncoder)
+            assert isinstance(self.decoder, ExDecoder)
+            bnmatch_optimizer = opt_cls(
+                params = [
+                    {'params': self.encoder.get_training_parameters()},
+                    {'params': self.decoder.get_training_parameters()}                  
+                ],
+                lr = self.lr_ratio_eneorder * self.lr_base,
+                weight_decay = self.weight_decay)
+        else:
+            bnmatch_optimizer = None
+
         self.optimizers = {
             "reconstruction": recon_optimizer,
             "mutual_info": mutual_info_optimizer,
@@ -507,7 +532,8 @@ class Trainer:
             "generator": gen_optimizer,
             "adversarial": adv_optimizer,
             "exscf": exscf_optimizer,
-            "ene_order": ene_order_optimizer
+            "ene_order": ene_order_optimizer,
+            "bnmatch": bnmatch_optimizer
         }
 
 
