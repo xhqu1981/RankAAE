@@ -600,6 +600,9 @@ class Trainer:
             ex_batch_size = math.ceil(p.batch_size * len(dl_train_ex) / len(dl_train))
             dl_train_ex, dl_val_ex, _ = get_dataloaders(
             p.ex_csv_fn, ex_batch_size, (train_ratio, validation_ratio, test_ratio), n_aux=p.n_aux)
+        else:
+            dl_train_ex = None
+            dl_val_ex = None    
 
         # Use GPU if possible
         if torch.cuda.is_available():
