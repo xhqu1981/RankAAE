@@ -528,12 +528,8 @@ class Trainer:
 
         if self.__dict__.get('lr_ratio_bnmatch', -1) > 0:
             assert isinstance(self.encoder, ExEncoder)
-            assert isinstance(self.decoder, ExDecoder)
             bnmatch_optimizer = opt_cls(
-                params = [
-                    {'params': self.encoder.get_training_parameters()},
-                    {'params': self.decoder.get_training_parameters()}                  
-                ],
+                params = self.encoder.get_training_parameters(),
                 lr = self.lr_ratio_eneorder * self.lr_base,
                 weight_decay = self.weight_decay)
         else:
