@@ -235,7 +235,7 @@ class MatchBN:
         spec_outer = self.decoder(z_sample).clone().detach()
         x: torch.FloatTensor = self.encoder.ex_layers(spec_outer)
         loss = []
-        i = []
+        i = 0
         for m in self.encoder.enclosing_encoder.main:
             if isinstance(m, nn.BatchNorm1d):
                  tmean = self.target_mean_list[i]
