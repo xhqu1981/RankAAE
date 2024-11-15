@@ -1,3 +1,4 @@
+import math
 import shutil
 import os
 import logging
@@ -55,7 +56,8 @@ class Trainer:
         verbose=True, work_dir='.', tb_logdir="runs", 
         config_parameters = Parameters({}), # initialize Parameters with an empty dictonary.
         logger = logging.getLogger("training"),
-        loss_logger = logging.getLogger("losses")
+        loss_logger = logging.getLogger("losses"),
+        ex_train_loader=None, ex_val_loader=None,
     ):
         self.logger = logger
         self.loss_logger = loss_logger # for recording losses as a function of epochs
@@ -65,6 +67,8 @@ class Trainer:
         self.discriminator = discriminator.to(self.device)
         self.train_loader = train_loader
         self.val_loader = val_loader
+        self.ex_train_loader = ex_train_loader
+        self.ex_val_loader = ex_val_loader
         self.verbose = verbose
         self.work_dir = work_dir
         self.tb_logdir = tb_logdir
@@ -110,6 +114,8 @@ class Trainer:
             if self.gradient_reversal:
                 alpha_ = alpha(epoch/self.max_epoch, self.alpha_flat_step, self.alpha_limit)
 
+            if self.ex_train_loader is not None:
+                ex_train_iter = iter(self.ex_train_loader)
             # Loop through the labeled and unlabeled dataset getting one batch of samples from each
             # The batch size has to be a divisor of the size of the dataset or it will return
             # invalid samples
@@ -235,9 +241,15 @@ class Trainer:
 
                 if self.optimizers["exscf"] is not None:
                     self.zerograd()
-                    exscf_loss_train = exscf_loss(
-                        self.z_sample_batch_size, self.nstyle, self.encoder, self.decoder,
-                        mse_loss=mse_loss, device=self.device)
+                    if self.ex_train_loader is not None:
+                        exscf_loss_train = exscf_loss(
+                            self.z_sample_batch_size, self.nstyle, self.encoder, self.decoder,
+                            mse_loss=mse_loss, device=self.device)
+                    else:
+                        exscf_loss_train = exscf_loss(
+                            -1, -1, self.encoder, self.decoder,
+                            mse_loss=mse_loss, device=self.device, 
+                            ex_spec_in=ex_train_iter.__next__()[0])
                     exscf_loss_train.backward()
                     self.optimizers["exscf"].step()
                 else:
@@ -270,6 +282,10 @@ class Trainer:
             
             spec_in_val, aux_in_val = [torch.cat(x, dim=0) for x in zip(*list(self.val_loader))]
             spec_in_val = spec_in_val.to(self.device)
+            if self.ex_train_loader is not None:
+                ex_spec_in_val, _ = [torch.cat(x, dim=0) for x in zip(*list(self.ex_val_loader))]
+            else:
+                ex_spec_in_val = None
             z = self.encoder(spec_in_val)
             spec_out_val = self.decoder(z)
 
@@ -343,7 +359,7 @@ class Trainer:
             if self.optimizers["exscf"] is not None:
                 exscf_loss_val = exscf_loss(
                     self.z_sample_batch_size, self.nstyle, self.encoder, self.decoder,
-                    mse_loss=mse_loss, device=self.device)
+                    mse_loss=mse_loss, device=self.device, ex_spec_in=ex_spec_in_val)
             else:
                 exscf_loss_val = torch.tensor(0.0)
                 
@@ -577,6 +593,13 @@ class Trainer:
         # load training and validation dataset
         dl_train, dl_val, _ = get_dataloaders(
             csv_fn, p.batch_size, (train_ratio, validation_ratio, test_ratio), n_aux=p.n_aux)
+        
+        if 'ex_csv_fn' in p:
+            dl_train_ex, dl_val_ex, _ = get_dataloaders(
+            p.ex_csv_fn, p.batch_size, (train_ratio, validation_ratio, test_ratio), n_aux=p.n_aux)
+            ex_batch_size = math.ceil(p.batch_size * len(dl_train_ex) / len(dl_train))
+            dl_train_ex, dl_val_ex, _ = get_dataloaders(
+            p.ex_csv_fn, ex_batch_size, (train_ratio, validation_ratio, test_ratio), n_aux=p.n_aux)
 
         # Use GPU if possible
         if torch.cuda.is_available():

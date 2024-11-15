@@ -194,7 +194,8 @@ def mutual_info_loss(batch_size, nstyle, encoder, decoder, n_aux, mse_loss=None,
     return loss
 
 
-def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder, mse_loss=None, device=None):
+def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder, mse_loss=None, device=None,
+               ex_spec_in=None):
     """
     Sample latent space, reconstruct spectra and feed back to encoder to reconstruct latent space.
     Return the loss between the sampled and reconstructed latent spacc.
@@ -205,8 +206,11 @@ def exscf_loss(batch_size, n_styles, encoder: ExEncoder, decoder: ExDecoder, mse
     if mse_loss is None:
         mse_loss = nn.MSELoss().to(device)
 
-    z_sample = torch.randn(batch_size, n_styles, requires_grad=False, device=device)
-    innner_spec_sample = decoder.enclosing_decoder(z_sample).detach()
+    if ex_spec_in is None:
+        z_sample = torch.randn(batch_size, n_styles, requires_grad=False, device=device)
+        innner_spec_sample = decoder.enclosing_decoder(z_sample).detach()
+    else:
+        innner_spec_sample = ex_spec_in
     innner_spec_reconn = encoder.ex_layers(decoder.ex_layers(innner_spec_sample))
     ex_loss = mse_loss(innner_spec_reconn, innner_spec_sample)
 
