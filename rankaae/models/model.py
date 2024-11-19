@@ -237,37 +237,28 @@ class ExLayers(nn.Module):
                  dim_in: int,
                  dim_out: int,
                  gate_window=13,
-                 n_gate_encoder_layers=3,
-                 n_gate_decoder_layers=3,
-                 gate_hidden_size=64,
-                 gate_latent_dim=1,
-                 activation='Swish',
                  n_polynomial_order=3,
                  n_polynomial_points=10,
                  padding_mode='stretch',
+                 transformer_d_model=2,
+                 transformer_hidden_size=64,
+                 transformer_nheads=1,
+                 transformer_activation='relu',
                  transformer_dropout=0.1,
-                 transformer_nheads=0):
+                 transformer_layers=3):
         super(ExLayers, self).__init__()
         self.compute_padding_params(dim_in, dim_out, gate_window, padding_mode)
 
-        use_transformer = transformer_nheads > 0
-        if use_transformer:
-            assert n_gate_decoder_layers == n_gate_encoder_layers
-            self.ene_pos = TransformerEnergyPositionPredictor(
-                n_grid=dim_in,
-                d_model=gate_latent_dim,
-                nhead=transformer_nheads,
-                dim_feedforward=gate_hidden_size,
-                nlayers=n_gate_encoder_layers,
-                dropout=transformer_dropout,
-                batch_first=True,
-                activation=activation)
-        else:
-            self.ene_pos = nn.Sequential(*[
-                FCEncoder(gate_latent_dim, dim_in, n_gate_encoder_layers, gate_hidden_size, activation),
-                FCDecoder(gate_latent_dim, dim_out=dim_out, activation=activation, 
-                        last_layer_activation=activation,
-                        n_layers=n_gate_decoder_layers, hidden_size=gate_hidden_size)]) 
+        assert transformer_nheads > 0
+        self.ene_pos = TransformerEnergyPositionPredictor(
+            n_grid=dim_in,
+            d_model=transformer_d_model,
+            nhead=transformer_nheads,
+            dim_feedforward=transformer_hidden_size,
+            nlayers=transformer_layers,
+            dropout=transformer_dropout,
+            batch_first=True,
+            activation=transformer_activation)
         self.two_hot_generator = TwoHotGenerator(gate_window)
         self.gate_window = gate_window
 
@@ -324,31 +315,29 @@ class ExEncoder(nn.Module):
                  dim_in: int,
                  enclosing_encoder: FCEncoder,
                  gate_window=13,
-                 n_gate_encoder_layers=3,
-                 n_gate_decoder_layers=3,
-                 gate_hidden_size=64,
-                 gate_latent_dim=1,
-                 activation='Swish',
                  n_polynomial_order=3,
                  n_polynomial_points=10,
                  padding_mode='stretch',
+                 transformer_d_model=2,
+                 transformer_hidden_size=64,
+                 transformer_nheads=1,
+                 transformer_activation='relu',
                  transformer_dropout=0.1,
-                 transformer_nheads=0):
+                 transformer_layers=3):
         super(ExEncoder, self).__init__()
         self.ex_layers = ExLayers(
             dim_in=dim_in, 
             dim_out=enclosing_encoder.dim_in,
             gate_window=gate_window, 
-            n_gate_encoder_layers=n_gate_encoder_layers,
-            n_gate_decoder_layers=n_gate_decoder_layers,
-            gate_hidden_size=gate_hidden_size,
-            gate_latent_dim=gate_latent_dim,
-            activation=activation,
             n_polynomial_order=n_polynomial_order,
             n_polynomial_points=n_polynomial_points,
             padding_mode=padding_mode,
+            transformer_d_model=transformer_d_model,
+            transformer_hidden_size=transformer_hidden_size,
+            transformer_nheads=transformer_nheads,
+            transformer_activation=transformer_activation,
             transformer_dropout=transformer_dropout,
-            transformer_nheads=transformer_nheads)
+            transformer_layers=transformer_layers)
         self.enclosing_encoder = enclosing_encoder
 
     def forward(self, spec):
@@ -365,31 +354,29 @@ class ExDecoder(nn.Module):
                  dim_out: int,
                  enclosing_decoder: FCDecoder,
                  gate_window=13,
-                 n_gate_encoder_layers=3,
-                 n_gate_decoder_layers=3,
-                 gate_hidden_size=64,
-                 gate_latent_dim=1,
-                 activation='Swish',
                  n_polynomial_order=3,
                  n_polynomial_points=10,
                  padding_mode='stretch',
+                 transformer_d_model=2,
+                 transformer_hidden_size=64,
+                 transformer_nheads=1,
+                 transformer_activation='relu',
                  transformer_dropout=0.1,
-                 transformer_nheads=0):
+                 transformer_layers=3):
         super(ExDecoder, self).__init__()
         self.ex_layers = ExLayers(
             dim_in=enclosing_decoder.dim_out, 
             dim_out=dim_out,
             gate_window=gate_window,
-            n_gate_encoder_layers=n_gate_encoder_layers,
-            n_gate_decoder_layers=n_gate_decoder_layers,
-            gate_hidden_size=gate_hidden_size,
-            gate_latent_dim=gate_latent_dim,
-            activation=activation,
             n_polynomial_order=n_polynomial_order,
             n_polynomial_points=n_polynomial_points,
             padding_mode=padding_mode,
+            transformer_d_model=transformer_d_model,
+            transformer_hidden_size=transformer_hidden_size,
+            transformer_nheads=transformer_nheads,
+            transformer_activation=transformer_activation,
             transformer_dropout=transformer_dropout,
-            transformer_nheads=transformer_nheads)
+            transformer_layers=transformer_layers)
         self.enclosing_decoder = enclosing_decoder
         self.nstyle = enclosing_decoder.nstyle
 
