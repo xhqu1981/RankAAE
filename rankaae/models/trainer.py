@@ -632,28 +632,26 @@ class Trainer:
                 mt['Decoder'].pre_trained = True
             encoder = ExEncoder(p.dim_in, enclosing_encoder=mt['Encoder'],
                                 gate_window=p.get('gate_window', 13),
-                                n_gate_encoder_layers=p.get('n_gate_encoder_layers', 3),
-                                n_gate_decoder_layers=p.get('n_gate_decoder_layers', 3),
-                                gate_hidden_size=p.get('gate_hidden_size', 64),
-                                gate_latent_dim=p.get('gate_latent_dim', 1),
-                                activation=p.get('ex_activation', 'Swish'),
                                 n_polynomial_order=p.get('n_polynomial_order', 3),
                                 n_polynomial_points=p.get('n_polynomial_points', 10),
                                 padding_mode=p.get('padding_mode', 'stretch'),
+                                transformer_d_model=p.get('transformer_d_model', 2),
+                                transformer_hidden_size=p.get('transformer_hidden_siz', 4),
+                                transformer_nheads=p.get('transformer_nheads', 1),
+                                transformer_activation=p.get('transformer_activation', 'relu'),
                                 transformer_dropout=p.get('transformer_dropout', 0.1),
-                                transformer_nheads=p.get('transformer_nheads', 0))
+                                transformer_layers=p.get('transformer_layers', 3))
             decoder = ExDecoder(p.dim_out, enclosing_decoder=mt['Decoder'],
                                 gate_window=p.get('gate_window', 13),
-                                n_gate_encoder_layers=p.get('n_gate_encoder_layers', 3),
-                                n_gate_decoder_layers=p.get('n_gate_decoder_layers', 3),
-                                gate_hidden_size=p.get('gate_hidden_size', 64),
-                                gate_latent_dim=p.get('gate_latent_dim', 1),
-                                activation=p.get('ex_activation', 'Swish'),
                                 n_polynomial_order=p.get('n_polynomial_order', 3),
                                 n_polynomial_points=p.get('n_polynomial_points', 10),
                                 padding_mode=p.get('padding_mode', 'stretch'),
+                                transformer_d_model=p.get('transformer_d_model', 2),
+                                transformer_hidden_size=p.get('transformer_hidden_siz', 4),
+                                transformer_nheads=p.get('transformer_nheads', 1),
+                                transformer_activation=p.get('transformer_activation', 'relu'),
                                 transformer_dropout=p.get('transformer_dropout', 0.1),
-                                transformer_nheads=p.get('transformer_nheads', 0))
+                                transformer_layers=p.get('transformer_layers', 3))
             discriminator = mt['Style Discriminator']
         else:
             # Generate encoder, decoder and discriminator
